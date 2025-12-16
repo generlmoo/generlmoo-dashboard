@@ -269,62 +269,7 @@ function attachActivityHandlers() {
 
 attachButtonInterestHandlers();
 attachActivityHandlers();
-attachOpenedHandlers();
-restoreOpenedStates();
 scheduleSleepChecks();
-
-// -- Manual confirmation helpers ------------------------------------------------
-// If a user successfully opens a service link, remember that as a recent "up"
-// signal to avoid confusing false "offline" states when cross-origin probes are
-// blocked by CORS or certificate prompts.
-const openedStoreKey = (k) => `service.opened.${k}`;
-const OPENED_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
-
-function rememberOpened(key) {
-  try {
-    localStorage.setItem(openedStoreKey(key), Date.now().toString());
-  } catch {
-    // ignore storage errors (private mode, quota, etc.)
-  }
-}
-
-function getOpenedTimestamp(key) {
-  try {
-    const raw = localStorage.getItem(openedStoreKey(key));
-    if (!raw) return null;
-    const ts = Number.parseInt(raw, 10);
-    return Number.isFinite(ts) ? ts : null;
-  } catch {
-    return null;
-  }
-}
-
-function attachOpenedHandlers() {
-  const cards = document.querySelectorAll('.card[data-service]');
-  for (const card of cards) {
-    const key = card.getAttribute('data-service');
-    if (!key) continue;
-
-    card.addEventListener('click', () => {
-      setStatus(key, 'up', 'opened');
-      rememberOpened(key);
-    });
-  }
-}
-
-function restoreOpenedStates() {
-  const cutoff = Date.now() - OPENED_TTL_MS;
-  const cards = document.querySelectorAll('.card[data-service]');
-
-  for (const card of cards) {
-    const key = card.getAttribute('data-service');
-    if (!key) continue;
-    const ts = getOpenedTimestamp(key);
-    if (typeof ts === 'number' && ts >= cutoff) {
-      setStatus(key, 'up', 'opened recently');
-    }
-  }
-}
 
 function joinUrl(base, path) {
   try {
@@ -332,47 +277,6 @@ function joinUrl(base, path) {
   } catch {
     return `${base}${path}`;
   }
-}
-
-function probeFrame(url, timeoutMs = 6000) {
-  return new Promise((resolve) => {
-    // This is the closest thing we can do in-browser to "does the website load?"
-    // If the target blocks framing (X-Frame-Options/CSP), browsers typically still
-    // load a blocked-page document and fire `load`, which is good enough to mark
-    // the service as reachable.
-    const iframe = document.createElement("iframe");
-    let done = false;
-
-    const finish = (ok) => {
-      if (done) return;
-      done = true;
-      clearTimeout(t);
-      iframe.onload = null;
-      iframe.onerror = null;
-      iframe.remove();
-      resolve(ok);
-    };
-
-    const t = setTimeout(() => finish(false), timeoutMs);
-    iframe.onload = () => finish(true);
-    iframe.onerror = () => finish(false);
-
-    iframe.tabIndex = -1;
-    iframe.setAttribute("aria-hidden", "true");
-    iframe.style.position = "absolute";
-    iframe.style.left = "-9999px";
-    iframe.style.top = "-9999px";
-    iframe.style.width = "1px";
-    iframe.style.height = "1px";
-    iframe.style.opacity = "0";
-    iframe.style.pointerEvents = "none";
-
-    const bust = url.includes("?") ? `&_=${Date.now()}` : `?_=${Date.now()}`;
-    iframe.src = `${url}${bust}`;
-
-    // If <body> isn't ready, fall back to <html>.
-    (document.body || document.documentElement).appendChild(iframe);
-  });
 }
 
 function probeImage(url, timeoutMs = 5000) {
@@ -429,29 +333,13 @@ async function checkService(service) {
   const paths =
     Array.isArray(service.probePaths) && service.probePaths.length > 0 ? service.probePaths : ["/favicon.ico"];
 
-  // Prefer a hidden iframe load as the most reliable "does it load in the browser?" check.
-  // This avoids false negatives from `fetch()` (e.g., servers rejecting `Origin: null` when
-  // running the dashboard from `file://`).
-  if (await probeFrame(service.url)) return "up";
-
-  // Next: try fetch probes (best-effort; can be blocked by browser security/policies).
-  for (const p of paths) {
-    const ok = await probeFetch(joinUrl(service.url, p));
-    if (ok) return "up";
-  }
-
-  // Fallback: try base URL.
-  if (await probeFetch(service.url)) return "up";
-
-  // Last resort: image probe (some environments block fetch but allow <img> loads).
+  // Use image probes so Cloudflare-origin error pages (HTML) count as Offline.
   for (const p of paths) {
     const ok = await probeImage(joinUrl(service.url, p));
     if (ok) return "up";
   }
 
-  // If we can't confirm "up", don't claim "offline"—browser security (PNA/CORS/cert prompts)
-  // can make a reachable service look down from JS probes.
-  return "unknown";
+  return "down";
 }
 
 function setStatus(key, state, text) {
@@ -474,23 +362,17 @@ function stampLastCheck() {
 }
 
 async function refreshAll() {
-  for (const s of SERVICES) setStatus(s.key, "unknown", "checking...");
+  for (const s of SERVICES) setStatus(s.key, "down", "Offline");
   stampLastCheck();
-
-  const now = Date.now();
 
   await Promise.allSettled(
     SERVICES.map(async (s) => {
       const state = await checkService(s);
-      const openedTs = getOpenedTimestamp(s.key);
-      const recentlyOpened = typeof openedTs === 'number' && openedTs >= now - OPENED_TTL_MS;
 
       if (state === "up") {
-        setStatus(s.key, "up", "online");
-      } else if (recentlyOpened) {
-        setStatus(s.key, "up", "opened recently");
+        setStatus(s.key, "up", "Online");
       } else {
-        setStatus(s.key, "up", "online");
+        setStatus(s.key, "down", "Offline");
       }
     })
   );
@@ -588,6 +470,13 @@ async function refreshWeather({ forceLocation = false } = {}) {
 
   const stored = getStoredCoords();
   const canUseStored = stored && !forceLocation;
+
+  // Most browsers require a user gesture for the geolocation permission prompt.
+  // On first load, don't request location automatically; wait for the user to click Refresh.
+  if (!canUseStored && !forceLocation) {
+    setWeatherUi({ status: "idle", sub: "Click Refresh to allow location.", line: "--" });
+    return;
+  }
 
   if (canUseStored) {
     setWeatherUi({ status: "fetching", sub: "Updating from last location...", line: "--" });
