@@ -6,13 +6,21 @@ const SERVICES = [
     key: "files",
     url: "https://files.generlmoo.me",
     label: "files.generlmoo.me",
-    probePaths: ["/favicon.ico", "/favicon.svg"],
+    // FileBrowser serves icons under /static/img/icons/ (root /favicon.* returns HTML here).
+    probePaths: ["/static/img/icons/favicon.ico", "/static/img/icons/favicon.svg"],
   },
   {
     key: "watch",
     url: "https://watch.generlmoo.me",
     label: "watch.generlmoo.me",
-    probePaths: ["/web/favicon.ico", "/favicon.ico", "/favicon.svg"],
+    // Jellyfin (new UI) uses hashed favicon assets under /web/.
+    // Note: if Jellyfin is upgraded, these may change; in that case update these paths.
+    probePaths: [
+      "/web/favicon.bc8d51405ec040305a87.ico",
+      "/web/touchicon.f5bbb798cb2c65908633.png",
+      "/web/favicon.ico",
+      "/favicon.ico",
+    ],
   },
   {
     key: "nas",
