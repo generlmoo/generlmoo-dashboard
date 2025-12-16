@@ -334,6 +334,47 @@ function joinUrl(base, path) {
   }
 }
 
+function probeFrame(url, timeoutMs = 6000) {
+  return new Promise((resolve) => {
+    // This is the closest thing we can do in-browser to "does the website load?"
+    // If the target blocks framing (X-Frame-Options/CSP), browsers typically still
+    // load a blocked-page document and fire `load`, which is good enough to mark
+    // the service as reachable.
+    const iframe = document.createElement("iframe");
+    let done = false;
+
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      clearTimeout(t);
+      iframe.onload = null;
+      iframe.onerror = null;
+      iframe.remove();
+      resolve(ok);
+    };
+
+    const t = setTimeout(() => finish(false), timeoutMs);
+    iframe.onload = () => finish(true);
+    iframe.onerror = () => finish(false);
+
+    iframe.tabIndex = -1;
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.position = "absolute";
+    iframe.style.left = "-9999px";
+    iframe.style.top = "-9999px";
+    iframe.style.width = "1px";
+    iframe.style.height = "1px";
+    iframe.style.opacity = "0";
+    iframe.style.pointerEvents = "none";
+
+    const bust = url.includes("?") ? `&_=${Date.now()}` : `?_=${Date.now()}`;
+    iframe.src = `${url}${bust}`;
+
+    // If <body> isn't ready, fall back to <html>.
+    (document.body || document.documentElement).appendChild(iframe);
+  });
+}
+
 function probeImage(url, timeoutMs = 5000) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -388,8 +429,12 @@ async function checkService(service) {
   const paths =
     Array.isArray(service.probePaths) && service.probePaths.length > 0 ? service.probePaths : ["/favicon.ico"];
 
-  // Prefer fetch probes first: they succeed even when the endpoint redirects to HTML/login pages
-  // (which makes image-based favicon checks fail).
+  // Prefer a hidden iframe load as the most reliable "does it load in the browser?" check.
+  // This avoids false negatives from `fetch()` (e.g., servers rejecting `Origin: null` when
+  // running the dashboard from `file://`).
+  if (await probeFrame(service.url)) return "up";
+
+  // Next: try fetch probes (best-effort; can be blocked by browser security/policies).
   for (const p of paths) {
     const ok = await probeFetch(joinUrl(service.url, p));
     if (ok) return "up";
