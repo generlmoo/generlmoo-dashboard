@@ -269,7 +269,62 @@ function attachActivityHandlers() {
 
 attachButtonInterestHandlers();
 attachActivityHandlers();
+attachOpenedHandlers();
+restoreOpenedStates();
 scheduleSleepChecks();
+
+// -- Manual confirmation helpers ------------------------------------------------
+// If a user successfully opens a service link, remember that as a recent "up"
+// signal to avoid confusing false "offline" states when cross-origin probes are
+// blocked by CORS or certificate prompts.
+const openedStoreKey = (k) => `service.opened.${k}`;
+const OPENED_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+function rememberOpened(key) {
+  try {
+    localStorage.setItem(openedStoreKey(key), Date.now().toString());
+  } catch {
+    // ignore storage errors (private mode, quota, etc.)
+  }
+}
+
+function getOpenedTimestamp(key) {
+  try {
+    const raw = localStorage.getItem(openedStoreKey(key));
+    if (!raw) return null;
+    const ts = Number.parseInt(raw, 10);
+    return Number.isFinite(ts) ? ts : null;
+  } catch {
+    return null;
+  }
+}
+
+function attachOpenedHandlers() {
+  const cards = document.querySelectorAll('.card[data-service]');
+  for (const card of cards) {
+    const key = card.getAttribute('data-service');
+    if (!key) continue;
+
+    card.addEventListener('click', () => {
+      setStatus(key, 'up', 'opened');
+      rememberOpened(key);
+    });
+  }
+}
+
+function restoreOpenedStates() {
+  const cutoff = Date.now() - OPENED_TTL_MS;
+  const cards = document.querySelectorAll('.card[data-service]');
+
+  for (const card of cards) {
+    const key = card.getAttribute('data-service');
+    if (!key) continue;
+    const ts = getOpenedTimestamp(key);
+    if (typeof ts === 'number' && ts >= cutoff) {
+      setStatus(key, 'up', 'opened recently');
+    }
+  }
+}
 
 function joinUrl(base, path) {
   try {
@@ -373,11 +428,21 @@ async function refreshAll() {
   for (const s of SERVICES) setStatus(s.key, "unknown", "checking...");
   stampLastCheck();
 
+  const now = Date.now();
+
   await Promise.allSettled(
     SERVICES.map(async (s) => {
       const state = await checkService(s);
-      if (state === "up") setStatus(s.key, "up", "online");
-      else setStatus(s.key, "down", "offline");
+      const openedTs = getOpenedTimestamp(s.key);
+      const recentlyOpened = typeof openedTs === 'number' && openedTs >= now - OPENED_TTL_MS;
+
+      if (state === "up") {
+        setStatus(s.key, "up", "online");
+      } else if (recentlyOpened) {
+        setStatus(s.key, "up", "opened recently");
+      } else {
+        setStatus(s.key, "down", "offline");
+      }
     })
   );
 
