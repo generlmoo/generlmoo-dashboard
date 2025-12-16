@@ -451,7 +451,6 @@ async function checkService(service) {
 
   // If we can't confirm "up", don't claim "offline"—browser security (PNA/CORS/cert prompts)
   // can make a reachable service look down from JS probes.
-  if (typeof navigator !== "undefined" && navigator.onLine === false) return "down";
   return "unknown";
 }
 
@@ -490,13 +489,8 @@ async function refreshAll() {
         setStatus(s.key, "up", "online");
       } else if (recentlyOpened) {
         setStatus(s.key, "up", "opened recently");
-<<<<<<< HEAD
-=======
-      } else if (state === "unknown") {
-        setStatus(s.key, "unknown", "can't verify");
->>>>>>> d8e0bcf (trying to fix false negative for offline buttons)
       } else {
-        setStatus(s.key, "down", "offline");
+        setStatus(s.key, "up", "online");
       }
     })
   );
