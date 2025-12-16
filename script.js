@@ -366,9 +366,11 @@ async function probeFetch(url, timeoutMs = 5000) {
     // Use no-cors mode to bypass CORS restrictions
     // We only care if the request completes, not the response content
     const response = await fetch(url, {
-      method: 'HEAD',
+      // Some proxies/apps mishandle HEAD and fail the request entirely; GET is more reliable.
+      method: 'GET',
       mode: 'no-cors',
       cache: 'no-store',
+      credentials: 'omit',
       signal: controller.signal
     });
     
@@ -386,23 +388,26 @@ async function checkService(service) {
   const paths =
     Array.isArray(service.probePaths) && service.probePaths.length > 0 ? service.probePaths : ["/favicon.ico"];
 
-  // Try image probe first (best for detecting valid responses)
+  // Prefer fetch probes first: they succeed even when the endpoint redirects to HTML/login pages
+  // (which makes image-based favicon checks fail).
+  for (const p of paths) {
+    const ok = await probeFetch(joinUrl(service.url, p));
+    if (ok) return "up";
+  }
+
+  // Fallback: try base URL.
+  if (await probeFetch(service.url)) return "up";
+
+  // Last resort: image probe (some environments block fetch but allow <img> loads).
   for (const p of paths) {
     const ok = await probeImage(joinUrl(service.url, p));
     if (ok) return "up";
   }
 
-  // Fallback: try fetch probe on base URL (works even with CORS)
-  const fetchOk = await probeFetch(service.url);
-  if (fetchOk) return "up";
-
-  // Try fetch on first probe path
-  if (paths.length > 0) {
-    const pathOk = await probeFetch(joinUrl(service.url, paths[0]));
-    if (pathOk) return "up";
-  }
-
-  return "down";
+  // If we can't confirm "up", don't claim "offline"—browser security (PNA/CORS/cert prompts)
+  // can make a reachable service look down from JS probes.
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return "down";
+  return "unknown";
 }
 
 function setStatus(key, state, text) {
@@ -440,6 +445,11 @@ async function refreshAll() {
         setStatus(s.key, "up", "online");
       } else if (recentlyOpened) {
         setStatus(s.key, "up", "opened recently");
+<<<<<<< HEAD
+=======
+      } else if (state === "unknown") {
+        setStatus(s.key, "unknown", "can't verify");
+>>>>>>> d8e0bcf (trying to fix false negative for offline buttons)
       } else {
         setStatus(s.key, "down", "offline");
       }
