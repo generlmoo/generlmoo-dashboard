@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#00e5ff" />
+  <meta name="description" content="generlmoo.me - Personal Infrastructure Dashboard" />
+  <title>generlmoo // dashboard</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <main class="wrap">
+    <header class="top">
+      <div class="top-left">
+        <section class="weather-chip" aria-label="Local weather">
+          <div class="weather-chip-head">
+            <div class="weather-chip-title">Local Weather</div>
+            <button class="weather-chip-btn" id="btn-weather" type="button" title="Refresh local weather">Refresh</button>
+          </div>
+          <div class="weather-chip-line mono" id="weather-line">--</div>
+          <p class="weather-chip-sub muted" id="weather-sub">Loading...</p>
+          <span class="weather-chip-state" id="weather-status" aria-hidden="true">idle</span>
+        </section>
+
+        <div class="brand">
+          <button class="mascot" id="mascot" type="button" aria-label="Mascot">
+            <span class="mascot-static" aria-hidden="true"></span>
+          </button>
+          <div>
+            <h1>generlmoo<span class="accent">.me</span></h1>
+            <p class="sub">Personal Infrastructure Dashboard</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <button class="chip" id="btn-refresh" type="button" title="Re-check service status">
+          <span class="chip-dot"></span>
+          Refresh status
+        </button>
+        <a class="chip" href="https://github.com/generlmoo" target="_blank" rel="noreferrer" title="Optional: link your repo">
+          GitHub
+        </a>
+      </div>
+    </header>
+
+    <section class="cards" aria-label="Services">
+      <a class="card" href="https://files.generlmoo.me" target="_blank" rel="noreferrer" data-service="files">
+        <div class="card-head">
+          <div class="icon" aria-hidden="true">📁</div>
+          <div class="status" data-status="unknown" aria-label="Status">
+            <span class="status-dot"></span>
+            <span class="status-text">checking...</span>
+          </div>
+        </div>
+        <h2>FileBrowser</h2>
+        <p class="muted">Upload &amp; manage files</p>
+        <div class="mono">files.generlmoo.me</div>
+      </a>
+
+      <a class="card" href="https://watch.generlmoo.me" target="_blank" rel="noreferrer" data-service="watch">
+        <div class="card-head">
+          <div class="icon" aria-hidden="true">🎬</div>
+          <div class="status" data-status="unknown" aria-label="Status">
+            <span class="status-dot"></span>
+            <span class="status-text">checking...</span>
+          </div>
+        </div>
+        <h2>Jellyfin</h2>
+        <p class="muted">Streaming library</p>
+        <div class="mono">watch.generlmoo.me</div>
+      </a>
+
+      <a class="card" href="https://nas.generlmoo.me" target="_blank" rel="noreferrer" data-service="nas">
+        <div class="card-head">
+          <div class="icon" aria-hidden="true">🗄️</div>
+          <div class="status" data-status="unknown" aria-label="Status">
+            <span class="status-dot"></span>
+            <span class="status-text">checking...</span>
+          </div>
+        </div>
+        <h2>NAS</h2>
+        <p class="muted">OpenMediaVault &amp; monitoring</p>
+        <div class="mono">nas.generlmoo.me</div>
+      </a>
+
+      <a class="card" href="https://pihole.generlmoo.me/admin/login" target="_blank" rel="noreferrer" data-service="pihole">
+        <div class="card-head">
+          <div class="icon" aria-hidden="true">🛡️</div>
+          <div class="status" data-status="unknown" aria-label="Status">
+            <span class="status-dot"></span>
+            <span class="status-text">checking...</span>
+          </div>
+        </div>
+        <h2>Pi-hole</h2>
+        <p class="muted">DNS filtering &amp; stats</p>
+        <div class="mono">pihole.generlmoo.me</div>
+      </a>
+    </section>
+
+    <section class="panel" aria-label="Notes">
+      <div class="panel-row">
+        <div class="panel-left">
+          <h3>Security &amp; access</h3>
+          <p class="muted">
+            Tip: Put your services behind Cloudflare Zero Trust / Access. Keep this landing page public,
+            and protect the admin panels.
+          </p>
+        </div>
+        <div class="panel-right">
+          <div class="kv">
+            <div class="k">Stack</div>
+            <div class="v mono">Raspberry Pi | Cloudflare Tunnel | Tailscale | Jellyfin | OMV | Pi-hole</div>
+          </div>
+          <div class="kv">
+            <div class="k">Status checks</div>
+            <div class="v muted">Uses lightweight reachability checks (best-effort; may show unknown if blocked by CORS).</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <div class="muted">
+        <span class="mono">&copy; <span id="year"></span> Chester Grudzinski</span>
+        <span class="sep">&middot;</span>
+        <span>Built for a resume-ready homelab showcase</span>
+      </div>
+      <div class="muted mono" id="last-check">Last check: --</div>
+    </footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
