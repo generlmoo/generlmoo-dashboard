@@ -546,3 +546,14 @@ weatherBtn?.addEventListener("click", () => {
 });
 refreshWeather();
 setInterval(() => refreshWeather(), 15 * 60 * 1000);
+
+// Visitor counter
+fetch("/counter")
+  .then(r => r.json())
+  .then(d => {
+    const el = document.getElementById("visitor-count");
+    if (el && d.visitors !== undefined) {
+      el.textContent = `Visitors: ${d.visitors}`;
+    }
+  })
+  .catch(() => {});
