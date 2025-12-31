@@ -32,7 +32,7 @@
             <span class="mascot-static" aria-hidden="true"></span>
           </button>
           <div>
-            <h1>Chester<span class="accent">Grudzinski</span></h1>
+            <h1>generlmoo<span class="accent">.me</span></h1>
             <p class="sub">Personal Infrastructure Dashboard</p>
           </div>
         </div>
@@ -137,6 +137,28 @@
       <div class="muted mono" id="visitor-count">Visitors: --</div>
     </footer>
   </main>
+
+  <section class="chat chat-collapsed" id="chat" aria-label="Site chat">
+    <div class="chat-head">
+      <div class="chat-title">
+        <span class="chat-dot" id="chat-dot" aria-hidden="true"></span>
+        <span>Live chat</span>
+        <span class="chat-status" id="chat-status">offline</span>
+      </div>
+      <button class="chat-toggle" id="chat-toggle" type="button" aria-expanded="false">Open</button>
+    </div>
+    <div class="chat-body">
+      <div class="chat-meta">
+        <label class="chat-label" for="chat-name">Name</label>
+        <input class="chat-input" id="chat-name" type="text" maxlength="24" placeholder="guest" />
+      </div>
+      <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
+      <form class="chat-form" id="chat-form">
+        <input class="chat-input" id="chat-message" type="text" maxlength="280" placeholder="Say something..." autocomplete="off" />
+        <button class="chat-send" type="submit">Send</button>
+      </form>
+    </div>
+  </section>
 
  <script src="script.js?v=online-offline-v4"></script>
 </body>
