@@ -1,170 +1,1043 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#00e5ff" />
-  <meta name="description" content="generlmoo.me - Personal Infrastructure Dashboard" />
-  <title>generlmoo // dashboard</title>
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css" />
-</head>
+// generlmoo dashboard - best-effort status checks
+// NOTE: Browsers may block cross-origin checks due to CORS. This script still provides a useful "best effort".
 
-<body>
-  <div class="bg-grid" aria-hidden="true"></div>
-  <div class="bg-glow" aria-hidden="true"></div>
+const SERVICES = [
+  {
+    key: "files",
+    url: "https://files.generlmoo.me",
+    label: "files.generlmoo.me",
+    // FileBrowser serves icons under /static/img/icons/ (root /favicon.* returns HTML here).
+    probePaths: ["/static/img/icons/favicon.ico", "/static/img/icons/favicon.svg"],
+  },
+  {
+    key: "watch",
+    url: "https://watch.generlmoo.me",
+    label: "watch.generlmoo.me",
+    // Jellyfin (new UI) uses hashed favicon assets under /web/.
+    // Note: if Jellyfin is upgraded, these may change; in that case update these paths.
+    probePaths: [
+      "/web/favicon.bc8d51405ec040305a87.ico",
+      "/web/touchicon.f5bbb798cb2c65908633.png",
+      "/web/favicon.ico",
+      "/favicon.ico",
+    ],
+  },
+  {
+    key: "nas",
+    url: "https://nas.generlmoo.me",
+    label: "nas.generlmoo.me",
+    probePaths: ["/favicon.ico", "/favicon.svg"],
+  },
+  {
+    key: "pihole",
+    url: "https://pihole.generlmoo.me",
+    label: "pihole.generlmoo.me",
+    probePaths: ["/admin/img/favicons/favicon.ico", "/admin/favicon.ico", "/favicon.ico"],
+  },
+];
 
-  <main class="wrap">
-    <header class="top">
-      <div class="top-left">
-        <section class="weather-chip" aria-label="Local weather">
-          <div class="weather-chip-head">
-            <div class="weather-chip-title">Local Weather</div>
-            <button class="weather-chip-btn" id="btn-weather" type="button" title="Refresh local weather">Refresh</button>
-          </div>
-          <div class="weather-chip-line mono" id="weather-line">--</div>
-          <p class="weather-chip-sub muted" id="weather-sub">Loading...</p>
-          <span class="weather-chip-state" id="weather-status" aria-hidden="true">idle</span>
-        </section>
+// --- Mascot face controller (sprite sheet: 4 cols x 2 rows) ---
+const mascot = document.getElementById("mascot");
 
-        <div class="brand">
-          <button class="mascot" id="mascot" type="button" aria-label="Mascot">
-            <span class="mascot-static" aria-hidden="true"></span>
-          </button>
-          <div>
-            <h1>generlmoo<span class="accent">.me</span></h1>
-            <p class="sub">Personal Infrastructure Dashboard</p>
-          </div>
-        </div>
-      </div>
+// faces.png layout (4 cols x 2 rows):
+// normal | idle1 | sad | interested
+// happy  | angry | idle2 | idle3
+const FACE = {
+  normal: 0,
+  idle1: 1,
+  sad: 2,
+  interested: 3,
+  happy: 4,
+  angry: 5,
+  idle2: 6,
+  idle3: 7,
+};
 
-      <div class="top-actions">
-        <button class="chip" id="btn-refresh" type="button" title="Re-check service status">
-          <span class="chip-dot"></span>
-          Refresh status
-        </button>
-        <a class="chip" href="https://github.com/generlmoo" target="_blank" rel="noreferrer" title="Optional: link your repo">
-          GitHub
-        </a>
-      </div>
-    </header>
+let mascotSwitchTimer = null;
+let mascotLockTimer = null;
+let mascotLockUntil = 0;
+let annoyedLevel = 0;
+let lastActivityAt = Date.now();
+let sleepLevel = 0; // 0=normal, 1=idle1, 2=idle2, 3=idle3
+let sleepTimer = null;
+let wakeTimer = null;
+let isInterested = false;
 
-    <section class="cards" aria-label="Services">
-      <a class="card" href="https://files.generlmoo.me" target="_blank" rel="noreferrer" data-service="files">
-        <div class="card-head">
-          <div class="icon" aria-hidden="true">📁</div>
-          <div class="status" data-status="down" aria-label="Status">
-            <span class="status-dot"></span>
-            <span class="status-text">Offline</span>
-          </div>
-        </div>
-        <h2>FileBrowser</h2>
-        <p class="muted">Upload &amp; manage files</p>
-        <div class="mono">files.generlmoo.me</div>
-      </a>
+const IDLE1_MS = 20 * 1000;
+const IDLE2_MS = 60 * 1000;
+const IDLE3_MS = 70 * 1000;
 
-      <a class="card" href="https://watch.generlmoo.me" target="_blank" rel="noreferrer" data-service="watch">
-        <div class="card-head">
-          <div class="icon" aria-hidden="true">🎬</div>
-          <div class="status" data-status="down" aria-label="Status">
-            <span class="status-dot"></span>
-            <span class="status-text">Offline</span>
-          </div>
-        </div>
-        <h2>Jellyfin</h2>
-        <p class="muted">Streaming library</p>
-        <div class="mono">watch.generlmoo.me</div>
-      </a>
+function setMascotFrame(index) {
+  if (!mascot) return;
 
-      <a class="card" href="https://nas.generlmoo.me" target="_blank" rel="noreferrer" data-service="nas">
-        <div class="card-head">
-          <div class="icon" aria-hidden="true">🗄️</div>
-          <div class="status" data-status="down" aria-label="Status">
-            <span class="status-dot"></span>
-            <span class="status-text">Offline</span>
-          </div>
-        </div>
-        <h2>NAS</h2>
-        <p class="muted">OpenMediaVault &amp; monitoring</p>
-        <div class="mono">nas.generlmoo.me</div>
-      </a>
+  const clamped = Math.max(0, Math.min(7, index));
+  const col = clamped % 4;
+  const row = Math.floor(clamped / 4);
 
-      <a class="card" href="https://pihole.generlmoo.me/admin/login" target="_blank" rel="noreferrer" data-service="pihole">
-        <div class="card-head">
-          <div class="icon" aria-hidden="true">🛡️</div>
-          <div class="status" data-status="down" aria-label="Status">
-            <span class="status-dot"></span>
-            <span class="status-text">Offline</span>
-          </div>
-        </div>
-        <h2>Pi-hole</h2>
-        <p class="muted">DNS filtering &amp; stats</p>
-        <div class="mono">pihole.generlmoo.me</div>
-      </a>
-    </section>
+  mascot.classList.add("is-switching");
+  // Sprite-sheet tuning for the provided faces.png (364x183px, ~90px tiles with ~1px gutters).
+  const sheetW = 364;
+  const sheetH = 183;
+  const tile = 90;
+  const gutter = 1;
+  const borderX = 1;
+  const borderY = 1;
 
-    <section class="panel" aria-label="Notes">
-      <div class="panel-row">
-        <div class="panel-left">
-         <h3>Projects</h3>
-            <ul class="mono">
-              <li> Cloudflare Worker visitor analytics (KV-backed, privacy-first)</li>
-              <li> Raspberry Pi NAS (OMV + Jellyfin + FileBrowser)</li>
-              <li> Zero-trust ingress via Cloudflare Tunnel</li>
-              <li> Automation tooling (Python / VBA / C++)</li>
-            </ul>
-        </div>
-        <div class="panel-right">
-          <div class="kv">
-            <div class="k">Stack</div>
-            <div class="v mono">Raspberry Pi · Cloudflare Tunnel · Tailscale · Jellyfin · OMV · Pi-hole</div>
-          </div>
-          <div class="kv">
-            <div class="k">Status checks</div>
-            <div class="v muted">Uses lightweight reachability checks (best-effort; may show unknown if blocked by CORS).</div>
-          </div>
-        </div>
-      </div>
-    </section>
+  const target = 44;
+  const scale = target / tile;
 
-    <footer class="foot">
-      <div class="muted">
-        <span class="mono">&copy; <span id="year"></span> Chester Grudzinski</span>
-        <span class="sep">&middot;</span>
-        <span>Go outside</span>
-      </div>
-      <div class="muted mono" id="last-check">Last check: --</div>
-      <div class="muted mono" id="visitor-count">Visitors: --</div>
-    </footer>
-  </main>
+  const scaledSheetW = sheetW * scale;
+  const scaledSheetH = sheetH * scale;
+  mascot.style.setProperty("--sheet-w", `${scaledSheetW}px`);
+  mascot.style.setProperty("--sheet-h", `${scaledSheetH}px`);
 
-  <section class="chat chat-collapsed" id="chat" aria-label="Site chat">
-    <div class="chat-head">
-      <div class="chat-title">
-        <span class="chat-dot" id="chat-dot" aria-hidden="true"></span>
-        <span>Live chat</span>
-        <span class="chat-status" id="chat-status">offline</span>
-      </div>
-      <button class="chat-toggle" id="chat-toggle" type="button" aria-expanded="false">Open</button>
-    </div>
-      <div class="chat-body">
-      <div class="chat-meta">
-        <label class="chat-label" for="chat-name">Name</label>
-        <input class="chat-input" id="chat-name" type="text" maxlength="24" placeholder="Enter name" />
-      </div>
-      <div class="chat-admin">
-        <button class="chat-admin-btn" id="chat-owner-login" type="button">Owner login</button>
-        <button class="chat-admin-btn" id="chat-clear" type="button" hidden>Clear chat</button>
-      </div>
-      <div class="chat-users" id="chat-users" aria-label="Connected users"></div>
-      <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
-      <form class="chat-form" id="chat-form">
-        <input class="chat-input" id="chat-message" type="text" maxlength="280" placeholder="Say something..." autocomplete="off" />
-        <button class="chat-send" type="submit">Send</button>
-      </form>
-    </div>
-  </section>
+  const x = -(borderX + col * (tile + gutter)) * scale;
+  const y = -(borderY + row * (tile + gutter)) * scale;
+  mascot.style.setProperty("--x", `${x}px`);
+  mascot.style.setProperty("--y", `${y}px`);
 
- <script src="script.js?v=online-offline-v4"></script>
-</body>
-</html>
+  clearTimeout(mascotSwitchTimer);
+  mascotSwitchTimer = setTimeout(() => mascot.classList.remove("is-switching"), 180);
+}
+
+function lockMascot(ms) {
+  mascotLockUntil = Math.max(mascotLockUntil, Date.now() + ms);
+  clearTimeout(mascotLockTimer);
+  mascotLockTimer = setTimeout(() => {
+    mascotLockUntil = 0;
+  }, ms + 25);
+}
+
+function setMascotMood(mood, { lockMs = 0 } = {}) {
+  if (!mascot) return;
+  if (Date.now() < mascotLockUntil) return;
+  const idx = FACE[mood] ?? FACE.normal;
+  setMascotFrame(idx);
+  if (lockMs > 0) lockMascot(lockMs);
+}
+
+setMascotFrame(FACE.happy);
+
+function markActivity() {
+  lastActivityAt = Date.now();
+}
+
+function clearSleepTimers() {
+  clearTimeout(sleepTimer);
+  sleepTimer = null;
+}
+
+function scheduleSleepChecks() {
+  if (!mascot) return;
+  clearSleepTimers();
+
+  const tick = () => {
+    const idleMs = Date.now() - lastActivityAt;
+
+    if (!isInterested) {
+      if (idleMs >= IDLE3_MS) {
+        if (sleepLevel !== 3) {
+          sleepLevel = 3;
+          setMascotMood("idle3");
+        }
+      } else if (idleMs >= IDLE2_MS) {
+        if (sleepLevel !== 2) {
+          sleepLevel = 2;
+          setMascotMood("idle2");
+        }
+      } else if (idleMs >= IDLE1_MS) {
+        if (sleepLevel !== 1) {
+          sleepLevel = 1;
+          setMascotMood("idle1");
+        }
+      } else if (sleepLevel !== 0) {
+        sleepLevel = 0;
+        setMascotMood("normal");
+      }
+    }
+
+    sleepTimer = setTimeout(tick, 1000);
+  };
+
+  tick();
+}
+
+function cancelWakeSequence() {
+  clearTimeout(wakeTimer);
+  wakeTimer = null;
+}
+
+function wakeUpSequence() {
+  if (!mascot) return;
+  if (Date.now() < mascotLockUntil) return;
+
+  cancelWakeSequence();
+  if (sleepLevel === 0) return;
+
+  const steps =
+    sleepLevel === 3
+      ? ["idle3", "idle2", "idle1", "normal"]
+      : sleepLevel === 2
+        ? ["idle2", "idle1", "normal"]
+        : ["idle1", "normal"];
+  let idx = 0;
+
+  const next = () => {
+    setMascotMood(steps[idx]);
+    idx += 1;
+    if (idx >= steps.length) {
+      sleepLevel = 0;
+      if (isInterested) setMascotMood("interested");
+      return;
+    }
+    wakeTimer = setTimeout(next, 140);
+  };
+
+  next();
+}
+
+function pokeMascot() {
+  annoyedLevel = Math.min(6, annoyedLevel + 1);
+  if (annoyedLevel >= 3) setMascotFrame(FACE.angry);
+  else setMascotFrame(FACE.happy);
+
+  lockMascot(800);
+  setTimeout(() => {
+    annoyedLevel = Math.max(0, annoyedLevel - 1);
+    if (annoyedLevel === 0) {
+      if (sleepLevel === 3) setMascotMood("idle3");
+      else if (sleepLevel === 2) setMascotMood("idle2");
+      else setMascotMood("normal");
+    }
+  }, 1200);
+}
+
+mascot?.addEventListener("click", pokeMascot);
+mascot?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    pokeMascot();
+  }
+});
+
+function attachButtonInterestHandlers() {
+  const interactive = Array.from(document.querySelectorAll("button, a, input, select, textarea")).filter(
+    (el) => el instanceof HTMLElement && !el.hasAttribute("disabled")
+  );
+
+  for (const el of interactive) {
+    el.addEventListener("mouseenter", () => {
+      isInterested = true;
+      if (el.matches?.('[data-service="watch"]')) setMascotMood("happy");
+      else if (el.matches?.('[data-service="pihole"]')) setMascotMood("angry");
+      else setMascotMood("interested");
+    });
+    el.addEventListener("mouseleave", () => {
+      isInterested = false;
+      if (sleepLevel === 3) setMascotMood("idle3");
+      else if (sleepLevel === 2) setMascotMood("idle2");
+      else if (sleepLevel === 1) setMascotMood("idle1");
+      else setMascotMood("normal");
+    });
+    el.addEventListener("focus", () => {
+      isInterested = true;
+      if (el.matches?.('[data-service="watch"]')) setMascotMood("happy");
+      else if (el.matches?.('[data-service="pihole"]')) setMascotMood("angry");
+      else setMascotMood("interested");
+    });
+    el.addEventListener("blur", () => {
+      isInterested = false;
+      if (sleepLevel === 3) setMascotMood("idle3");
+      else if (sleepLevel === 2) setMascotMood("idle2");
+      else if (sleepLevel === 1) setMascotMood("idle1");
+      else setMascotMood("normal");
+    });
+  }
+}
+
+function attachActivityHandlers() {
+  const onActivity = (e) => {
+    if (e && (e.type === "mousemove" || e.type === "pointermove")) {
+      const dx = typeof e.movementX === "number" ? e.movementX : 0;
+      const dy = typeof e.movementY === "number" ? e.movementY : 0;
+      if (dx === 0 && dy === 0) return;
+    }
+    const wasAsleep = sleepLevel !== 0;
+    markActivity();
+    if (wasAsleep) wakeUpSequence();
+  };
+
+  window.addEventListener("mousemove", onActivity, { passive: true });
+  window.addEventListener("pointermove", onActivity, { passive: true });
+  window.addEventListener("mousedown", onActivity, { passive: true });
+  window.addEventListener("keydown", onActivity, { passive: true });
+  window.addEventListener("touchstart", onActivity, { passive: true });
+  window.addEventListener("scroll", onActivity, { passive: true });
+}
+
+attachButtonInterestHandlers();
+attachActivityHandlers();
+scheduleSleepChecks();
+
+function joinUrl(base, path) {
+  try {
+    return new URL(path, base).toString();
+  } catch {
+    return `${base}${path}`;
+  }
+}
+
+function probeImage(url, timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    let done = false;
+
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      clearTimeout(t);
+      img.onload = null;
+      img.onerror = null;
+      resolve(ok);
+    };
+
+    const t = setTimeout(() => finish(false), timeoutMs);
+    img.onload = () => finish(true);
+    img.onerror = () => finish(false);
+
+    // Cache-bust so we don't keep a stale "success" around.
+    const bust = url.includes("?") ? `&_=${Date.now()}` : `?_=${Date.now()}`;
+    img.src = `${url}${bust}`;
+  });
+}
+
+async function probeFetch(url, timeoutMs = 5000) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    
+    // Use no-cors mode to bypass CORS restrictions
+    // We only care if the request completes, not the response content
+    const response = await fetch(url, {
+      // Some proxies/apps mishandle HEAD and fail the request entirely; GET is more reliable.
+      method: 'GET',
+      mode: 'no-cors',
+      cache: 'no-store',
+      credentials: 'omit',
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeout);
+    // In no-cors mode, response.type will be 'opaque' if request succeeded
+    // Any response (even errors) means the server is reachable
+    return true;
+  } catch (e) {
+    // Network error or timeout
+    return false;
+  }
+}
+
+async function checkService(service) {
+  const paths =
+    Array.isArray(service.probePaths) && service.probePaths.length > 0 ? service.probePaths : ["/favicon.ico"];
+
+  // Use image probes so Cloudflare-origin error pages (HTML) count as Offline.
+  for (const p of paths) {
+    const ok = await probeImage(joinUrl(service.url, p));
+    if (ok) return "up";
+  }
+
+  // Fallback: no-cors fetch to detect reachability when favicons are blocked by auth/CORP.
+  const okFetch = await probeFetch(service.url);
+  if (okFetch) return "up";
+
+  return "down";
+}
+
+function setStatus(key, state, text) {
+  const card = document.querySelector(`[data-service="${key}"]`);
+  if (!card) return;
+
+  const status = card.querySelector(".status");
+  const statusText = card.querySelector(".status-text");
+  if (!status || !statusText) return;
+
+  status.dataset.status = state;
+  statusText.textContent = text;
+}
+
+function stampLastCheck() {
+  const el = document.getElementById("last-check");
+  if (!el) return;
+  const now = new Date();
+  el.textContent = `Last check: ${now.toLocaleString()}`;
+}
+
+async function refreshAll() {
+  for (const s of SERVICES) setStatus(s.key, "down", "Offline");
+  stampLastCheck();
+
+  await Promise.allSettled(
+    SERVICES.map(async (s) => {
+      const state = await checkService(s);
+
+      if (state === "up") {
+        setStatus(s.key, "up", "Online");
+      } else {
+        setStatus(s.key, "down", "Offline");
+      }
+    })
+  );
+
+  stampLastCheck();
+}
+
+document.getElementById("year").textContent = new Date().getFullYear();
+document.getElementById("btn-refresh").addEventListener("click", () => {
+  setMascotMood("sad", { lockMs: 700 });
+  refreshAll();
+});
+refreshAll();
+
+// ---- Weather (Open-Meteo) ----
+const weatherBtn = document.getElementById("btn-weather");
+const weatherStatus = document.getElementById("weather-status");
+const weatherSub = document.getElementById("weather-sub");
+const weatherLine = document.getElementById("weather-line");
+
+const WMO = {
+  0: "Clear",
+  1: "Mostly clear",
+  2: "Partly cloudy",
+  3: "Overcast",
+  45: "Fog",
+  48: "Rime fog",
+  51: "Light drizzle",
+  53: "Drizzle",
+  55: "Heavy drizzle",
+  61: "Light rain",
+  63: "Rain",
+  65: "Heavy rain",
+  71: "Light snow",
+  73: "Snow",
+  75: "Heavy snow",
+  80: "Rain showers",
+  81: "Showers",
+  82: "Violent showers",
+  95: "Thunderstorm",
+  96: "Thunderstorm hail",
+  99: "Heavy hail",
+};
+
+function setWeatherUi({ status, sub, line }) {
+  if (weatherStatus && typeof status === "string") weatherStatus.textContent = status;
+  if (weatherSub && typeof sub === "string") weatherSub.textContent = sub;
+  if (weatherLine && typeof line === "string") weatherLine.textContent = line;
+}
+
+function getStoredCoords() {
+  try {
+    const raw = localStorage.getItem("weather.coords.v1");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    if (typeof parsed.lat !== "number" || typeof parsed.lon !== "number") return null;
+    if (typeof parsed.ts !== "number") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function storeCoords(lat, lon) {
+  try {
+    localStorage.setItem("weather.coords.v1", JSON.stringify({ lat, lon, ts: Date.now() }));
+  } catch {
+    // ignore
+  }
+}
+
+function getPosition({ timeout = 8000 } = {}) {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: false,
+      timeout,
+      maximumAge: 10 * 60 * 1000,
+    });
+  });
+}
+
+async function fetchWeather(lat, lon) {
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m` +
+    `&temperature_unit=fahrenheit&wind_speed_unit=mph`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error("weather fetch failed");
+  return res.json();
+}
+
+async function refreshWeather({ forceLocation = false } = {}) {
+  if (!weatherSub || !weatherLine) return;
+
+  const stored = getStoredCoords();
+  const canUseStored = stored && !forceLocation;
+
+  // Most browsers require a user gesture for the geolocation permission prompt.
+  // On first load, don't request location automatically; wait for the user to click Refresh.
+  if (!canUseStored && !forceLocation) {
+    setWeatherUi({ status: "idle", sub: "Click Refresh to allow location.", line: "--" });
+    return;
+  }
+
+  if (canUseStored) {
+    setWeatherUi({ status: "fetching", sub: "Updating from last location...", line: "--" });
+    try {
+      const data = await fetchWeather(stored.lat, stored.lon);
+      const c = data.current;
+      const desc = WMO[c.weather_code] || `Code ${c.weather_code}`;
+      const deg = "\u00B0";
+      setWeatherUi({
+        status: "live",
+        sub: `${desc} - Wind ${Math.round(c.wind_speed_10m)} mph`,
+        line: `${Math.round(c.temperature_2m)}${deg}F (feels ${Math.round(c.apparent_temperature)}${deg}F)`,
+      });
+    } catch {
+      setWeatherUi({ status: "failed", sub: "Couldn't fetch weather. Try refresh.", line: "--" });
+    }
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    setWeatherUi({ status: "unavailable", sub: "Geolocation not supported in this browser.", line: "--" });
+    return;
+  }
+
+  if (!window.isSecureContext) {
+    setWeatherUi({ status: "unavailable", sub: "Geolocation requires HTTPS.", line: "--" });
+    return;
+  }
+
+  setWeatherUi({ status: "getting location", sub: "Requesting location permission...", line: "--" });
+  try {
+    const pos = await getPosition();
+    const { latitude, longitude } = pos.coords;
+    storeCoords(latitude, longitude);
+
+    setWeatherUi({ status: "fetching", sub: "Fetching weather...", line: "--" });
+    const data = await fetchWeather(latitude, longitude);
+    const c = data.current;
+    const desc = WMO[c.weather_code] || `Code ${c.weather_code}`;
+    const deg = "\u00B0";
+
+    setWeatherUi({
+      status: "live",
+      sub: `${desc} - Wind ${Math.round(c.wind_speed_10m)} mph`,
+      line: `${Math.round(c.temperature_2m)}${deg}F (feels ${Math.round(c.apparent_temperature)}${deg}F)`,
+    });
+  } catch (e) {
+    const msg =
+      e && typeof e === "object" && "code" in e && e.code === 1
+        ? "Location permission denied."
+        : "Couldn't get location. Try refresh.";
+    setWeatherUi({ status: "denied", sub: msg, line: "--" });
+  }
+}
+
+weatherBtn?.addEventListener("click", () => {
+  setMascotMood("sad", { lockMs: 700 });
+  refreshWeather({ forceLocation: true });
+});
+refreshWeather();
+setInterval(() => refreshWeather(), 15 * 60 * 1000);
+
+// Visitor counter
+fetch("/counter")
+  .then(r => r.json())
+  .then(d => {
+    const el = document.getElementById("visitor-count");
+    if (el && d.visitors !== undefined) {
+      el.textContent = `Visitors: ${d.visitors}`;
+    }
+  })
+  .catch(() => {});
+
+// ---- Live chat (WebSocket) ----
+const CHAT_WS_URL = "wss://chat.generlmoo.me";
+const chatRoot = document.getElementById("chat");
+const chatStatus = document.getElementById("chat-status");
+const chatDot = document.getElementById("chat-dot");
+const chatMessages = document.getElementById("chat-messages");
+const chatForm = document.getElementById("chat-form");
+const chatInput = document.getElementById("chat-message");
+const chatName = document.getElementById("chat-name");
+const chatToggle = document.getElementById("chat-toggle");
+const chatOwnerLogin = document.getElementById("chat-owner-login");
+const chatClearBtn = document.getElementById("chat-clear");
+const chatUsersEl = document.getElementById("chat-users");
+
+const CHAT_MAX_LEN = 280;
+const CHAT_RESERVED_NAME = "generlmoo";
+const CHAT_OWNER_NAME = "Generlmoo";
+const CHAT_URL_RE = /(https?:\/\/|www\.)/i;
+const CHAT_HTML_RE = /<[^>]+>/;
+const CHAT_COOLDOWN_MS = 5000;
+const CHAT_BAN_KEY = "chat.banned.v1";
+const CHAT_OWNER_TOKEN_KEY = "chat.owner.token.v1";
+const CHAT_NAME_RE = /^[A-Za-z][A-Za-z0-9 _-]{1,23}$/;
+const CHAT_BLOCKED_NAMES = [
+  "generlmoo",
+  "generalmoo",
+  "grud",
+  "chester",
+  "chet",
+  "walter",
+  "wallet",
+  "balnut",
+  "walnut",
+];
+
+let chatSocket = null;
+let chatReconnectTimer = null;
+let chatBackoffMs = 1000;
+let chatBanned = false;
+let chatCooldownUntil = 0;
+const chatClientId = (() => {
+  try {
+    const key = "chat.client.id.v1";
+    const existing = localStorage.getItem(key);
+    if (existing) return existing;
+    const id = `c_${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(key, id);
+    return id;
+  } catch {
+    return `c_${Math.random().toString(36).slice(2, 10)}`;
+  }
+})();
+
+function setChatStatus(state) {
+  if (!chatRoot || !chatStatus) return;
+  chatRoot.classList.remove("chat-online", "chat-offline", "chat-banned");
+  if (state === "online") {
+    chatRoot.classList.add("chat-online");
+  } else if (state === "offline") {
+    chatRoot.classList.add("chat-offline");
+  } else if (state === "banned") {
+    chatRoot.classList.add("chat-banned");
+  }
+  chatStatus.textContent = state;
+}
+
+function appendChatMessage({ name, text, ts, self = false, system = false }) {
+  if (!chatMessages) return;
+  const wrap = document.createElement("div");
+  wrap.className = `chat-msg${self ? " self" : ""}`;
+  const meta = document.createElement("div");
+  meta.className = "chat-msg-meta";
+  const who = document.createElement("span");
+  who.textContent = system ? "system" : name || "guest";
+  const when = document.createElement("span");
+  const time = new Date(ts || Date.now());
+  when.textContent = time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  meta.appendChild(who);
+  meta.appendChild(when);
+  const body = document.createElement("div");
+  body.className = "chat-msg-text";
+  body.textContent = text || "";
+  wrap.appendChild(meta);
+  wrap.appendChild(body);
+  chatMessages.appendChild(wrap);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function normalizeChatName(raw) {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return "";
+  if (trimmed === CHAT_OWNER_NAME) return trimmed;
+  if (trimmed.toLowerCase() === CHAT_RESERVED_NAME) return "";
+  return trimmed.slice(0, 24);
+}
+
+function getOwnerToken() {
+  try {
+    return localStorage.getItem(CHAT_OWNER_TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function isNameBlocked(name) {
+  const lower = String(name || "").toLowerCase();
+  return CHAT_BLOCKED_NAMES.some((entry) => lower.includes(entry));
+}
+
+function isOwnerSession(name) {
+  return name === CHAT_OWNER_NAME && !!getOwnerToken();
+}
+
+function validateName(raw) {
+  const name = String(raw || "").trim();
+  if (!name) return { ok: false, reason: "Name is required." };
+  if (name.toLowerCase() === "guest") return { ok: false, reason: "Guest is not allowed." };
+  if (!CHAT_NAME_RE.test(name)) return { ok: false, reason: "Use letters/numbers only." };
+  if (name === CHAT_OWNER_NAME) {
+    if (!getOwnerToken()) return { ok: false, reason: "Owner key required." };
+    return { ok: true, name };
+  }
+  if (isNameBlocked(name)) return { ok: false, reason: "Name not allowed." };
+  return { ok: true, name };
+}
+
+function sendHello() {
+  if (!chatSocket || chatSocket.readyState !== 1) return;
+  const payload = {
+    type: "hello",
+    id: chatClientId,
+    name: chatName?.value?.trim() || "",
+    auth: getOwnerToken(),
+  };
+  chatSocket.send(JSON.stringify(payload));
+}
+
+function sendAdmin(action, targetId) {
+  if (!chatSocket || chatSocket.readyState !== 1) return;
+  if (!isOwnerSession(chatName?.value)) return;
+  const payload = {
+    type: "admin",
+    action,
+    targetId,
+    auth: getOwnerToken(),
+    name: chatName?.value?.trim() || "",
+  };
+  chatSocket.send(JSON.stringify(payload));
+}
+
+function renderUsers(users) {
+  if (!chatUsersEl) return;
+  chatUsersEl.textContent = "";
+  if (!Array.isArray(users) || users.length === 0) {
+    chatUsersEl.textContent = "No users connected.";
+    return;
+  }
+  const isOwner = isOwnerSession(chatName?.value);
+  for (const user of users) {
+    const row = document.createElement("div");
+    row.className = "chat-user";
+    const label = document.createElement("span");
+    const name = user?.name || "unknown";
+    label.textContent = user?.muted ? `${name} (muted)` : name;
+    row.appendChild(label);
+    if (isOwner && user?.id && name !== CHAT_OWNER_NAME) {
+      const controls = document.createElement("div");
+      controls.className = "chat-user-controls";
+      const banBtn = document.createElement("button");
+      banBtn.className = "chat-user-btn";
+      banBtn.type = "button";
+      banBtn.textContent = "Ban";
+      banBtn.addEventListener("click", () => sendAdmin("ban", user.id));
+      const muteBtn = document.createElement("button");
+      muteBtn.className = "chat-user-btn";
+      muteBtn.type = "button";
+      muteBtn.textContent = user?.muted ? "Unmute" : "Mute";
+      muteBtn.addEventListener("click", () => sendAdmin(user?.muted ? "unmute" : "mute", user.id));
+      controls.appendChild(banBtn);
+      controls.appendChild(muteBtn);
+      row.appendChild(controls);
+    }
+    chatUsersEl.appendChild(row);
+  }
+}
+
+function updateOwnerUi() {
+  const isOwner = isOwnerSession(chatName?.value);
+  if (chatClearBtn) chatClearBtn.hidden = !isOwner;
+}
+
+function isBlockedContent(text) {
+  if (!text) return false;
+  return CHAT_URL_RE.test(text) || CHAT_HTML_RE.test(text);
+}
+
+function connectChat() {
+  if (!chatRoot || !CHAT_WS_URL) return;
+  if (chatBanned) return;
+  if (chatSocket && (chatSocket.readyState === 0 || chatSocket.readyState === 1)) return;
+
+  setChatStatus("connecting");
+  try {
+    chatSocket = new WebSocket(CHAT_WS_URL);
+  } catch {
+    setChatStatus("offline");
+    return;
+  }
+
+  chatSocket.addEventListener("open", () => {
+    chatBackoffMs = 1000;
+    setChatStatus("online");
+    appendChatMessage({ text: "Connected.", system: true });
+    sendHello();
+  });
+
+  chatSocket.addEventListener("close", (event) => {
+    const reason = typeof event?.reason === "string" ? event.reason.toLowerCase() : "";
+    if (
+      event &&
+      (event.code === 4001 || event.code === 4002 || event.code === 4003 || reason.includes("banned"))
+    ) {
+      chatBanned = true;
+      try {
+        localStorage.setItem(CHAT_BAN_KEY, "1");
+      } catch {
+        // ignore
+      }
+      if (chatReconnectTimer) {
+        clearTimeout(chatReconnectTimer);
+        chatReconnectTimer = null;
+      }
+      setChatStatus("banned");
+      appendChatMessage({ text: "You are banned from chat.", system: true });
+      return;
+    }
+
+    setChatStatus("offline");
+    appendChatMessage({ text: "Disconnected. Reconnecting...", system: true });
+    if (!chatReconnectTimer) {
+      chatReconnectTimer = setTimeout(() => {
+        chatReconnectTimer = null;
+        chatBackoffMs = Math.min(15000, chatBackoffMs * 1.5);
+        connectChat();
+      }, chatBackoffMs);
+    }
+  });
+
+  chatSocket.addEventListener("error", () => {
+    setChatStatus("offline");
+  });
+
+  chatSocket.addEventListener("message", (event) => {
+    const raw = typeof event.data === "string" ? event.data : "";
+    if (!raw) return;
+    const rawLower = raw.toLowerCase();
+    if (rawLower.includes("banned") || rawLower.includes("no scripts allowed")) {
+      chatBanned = true;
+      try {
+        localStorage.setItem(CHAT_BAN_KEY, "1");
+      } catch {
+        // ignore
+      }
+      if (chatReconnectTimer) {
+        clearTimeout(chatReconnectTimer);
+        chatReconnectTimer = null;
+      }
+      setChatStatus("banned");
+      appendChatMessage({ text: "You are banned from chat.", system: true });
+      return;
+    }
+    if (raw === "connected") {
+      appendChatMessage({ text: "Server connected.", system: true });
+      return;
+    }
+    try {
+      const msg = JSON.parse(raw);
+      if (msg && msg.type === "msg") {
+        appendChatMessage({
+          name: msg.name,
+          text: msg.text,
+          ts: msg.ts,
+          self: msg.id === chatClientId,
+        });
+        return;
+      }
+      if (msg && msg.type === "users") {
+        renderUsers(msg.users);
+        return;
+      }
+    } catch {
+      // fall through
+    }
+    appendChatMessage({ text: raw, system: true });
+  });
+}
+
+if (chatName) {
+  try {
+    const stored = localStorage.getItem("chat.name.v1");
+    if (stored) {
+      const result = validateName(stored);
+      if (result.ok) {
+        chatName.value = result.name;
+        chatName.setAttribute("readonly", "true");
+        updateOwnerUi();
+      } else {
+        chatName.value = "";
+        localStorage.removeItem("chat.name.v1");
+      }
+    }
+  } catch {
+    // ignore
+  }
+  chatName.addEventListener("change", () => {
+    if (chatName.hasAttribute("readonly")) return;
+    let value = chatName.value.trim();
+    if (value === CHAT_OWNER_NAME) {
+      const token = window.prompt("Owner key required for Generlmoo:");
+      if (!token) {
+        appendChatMessage({ text: "Owner key missing.", system: true });
+        chatName.value = "";
+        return;
+      }
+      try {
+        localStorage.setItem(CHAT_OWNER_TOKEN_KEY, token);
+      } catch {
+        // ignore
+      }
+    }
+    const result = validateName(value);
+    if (!result.ok) {
+      appendChatMessage({ text: result.reason, system: true });
+      chatName.value = "";
+      return;
+    }
+    chatName.value = result.name;
+    chatName.setAttribute("readonly", "true");
+    try {
+      localStorage.setItem("chat.name.v1", result.name);
+    } catch {
+      // ignore
+    }
+    updateOwnerUi();
+    sendHello();
+  });
+}
+
+chatForm?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!chatInput || !chatSocket || chatSocket.readyState !== 1) {
+    appendChatMessage({ text: "Chat is offline.", system: true });
+    return;
+  }
+  const text = chatInput.value.trim();
+  if (!text) return;
+  const nameCheck = validateName(chatName?.value);
+  if (!nameCheck.ok) {
+    appendChatMessage({ text: nameCheck.reason, system: true });
+    return;
+  }
+  const isOwner = isOwnerSession(nameCheck.name);
+  const now = Date.now();
+  if (!isOwner && now < chatCooldownUntil) {
+    const remaining = Math.ceil((chatCooldownUntil - now) / 1000);
+    appendChatMessage({ text: `Please wait ${remaining}s before sending again.`, system: true });
+    return;
+  }
+  if (text.length > CHAT_MAX_LEN) {
+    appendChatMessage({ text: `Message too long (max ${CHAT_MAX_LEN}).`, system: true });
+    return;
+  }
+  if (!isOwner && isBlockedContent(text)) {
+    appendChatMessage({ text: "Links or HTML are not allowed.", system: true });
+    return;
+  }
+  const name = nameCheck.name;
+  const payload = {
+    type: "msg",
+    id: chatClientId,
+    name,
+    text,
+    ts: Date.now(),
+  };
+  if (name === CHAT_OWNER_NAME) {
+    payload.auth = getOwnerToken();
+  }
+  chatSocket.send(JSON.stringify(payload));
+  if (!isOwner) {
+    chatCooldownUntil = Date.now() + CHAT_COOLDOWN_MS;
+  }
+  chatInput.value = "";
+});
+
+chatToggle?.addEventListener("click", () => {
+  if (!chatRoot || !chatToggle) return;
+  const isCollapsed = chatRoot.classList.toggle("chat-collapsed");
+  chatToggle.textContent = isCollapsed ? "Open" : "Close";
+  chatToggle.setAttribute("aria-expanded", String(!isCollapsed));
+
+  if (!isCollapsed && chatName && !chatName.value && !chatName.hasAttribute("readonly")) {
+    let name = "";
+    while (!name) {
+      const entered = window.prompt("Please enter name:");
+      if (entered === null) {
+        appendChatMessage({ text: "Name is required to chat.", system: true });
+        continue;
+      }
+      const trimmed = entered.trim();
+      if (trimmed === CHAT_OWNER_NAME) {
+        const token = window.prompt("Owner key required for Generlmoo:");
+        if (!token) {
+          window.alert("Owner key missing.");
+          continue;
+        }
+        try {
+          localStorage.setItem(CHAT_OWNER_TOKEN_KEY, token);
+        } catch {
+          // ignore
+        }
+      }
+      const result = validateName(trimmed);
+      if (!result.ok) {
+        window.alert(result.reason);
+        continue;
+      }
+      name = result.name;
+    }
+    chatName.value = name;
+    chatName.setAttribute("readonly", "true");
+    try {
+      localStorage.setItem("chat.name.v1", name);
+    } catch {
+      // ignore
+    }
+    updateOwnerUi();
+    sendHello();
+  }
+});
+
+chatOwnerLogin?.addEventListener("click", () => {
+  const token = window.prompt("Owner key:");
+  if (!token) return;
+  try {
+    localStorage.setItem(CHAT_OWNER_TOKEN_KEY, token);
+  } catch {
+    // ignore
+  }
+  if (chatName) {
+    chatName.value = CHAT_OWNER_NAME;
+    chatName.setAttribute("readonly", "true");
+    try {
+      localStorage.setItem("chat.name.v1", CHAT_OWNER_NAME);
+    } catch {
+      // ignore
+    }
+  }
+  updateOwnerUi();
+  sendHello();
+});
+
+chatClearBtn?.addEventListener("click", () => {
+  sendAdmin("clear");
+});
+
+if (chatRoot && chatToggle) {
+  chatRoot.classList.add("chat-collapsed");
+  chatToggle.textContent = "Open";
+  chatToggle.setAttribute("aria-expanded", "false");
+  try {
+    if (localStorage.getItem(CHAT_BAN_KEY) === "1") {
+      chatBanned = true;
+      setChatStatus("banned");
+    }
+  } catch {
+    // ignore
+  }
+  connectChat();
+}
