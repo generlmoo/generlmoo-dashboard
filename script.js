@@ -557,3 +557,172 @@ fetch("/counter")
     }
   })
   .catch(() => {});
+
+// ---- Live chat (WebSocket) ----
+const CHAT_WS_URL = "wss://chat.generlmoo.me";
+const chatRoot = document.getElementById("chat");
+const chatStatus = document.getElementById("chat-status");
+const chatDot = document.getElementById("chat-dot");
+const chatMessages = document.getElementById("chat-messages");
+const chatForm = document.getElementById("chat-form");
+const chatInput = document.getElementById("chat-message");
+const chatName = document.getElementById("chat-name");
+const chatToggle = document.getElementById("chat-toggle");
+
+let chatSocket = null;
+let chatReconnectTimer = null;
+let chatBackoffMs = 1000;
+const chatClientId = (() => {
+  try {
+    const key = "chat.client.id.v1";
+    const existing = localStorage.getItem(key);
+    if (existing) return existing;
+    const id = `c_${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(key, id);
+    return id;
+  } catch {
+    return `c_${Math.random().toString(36).slice(2, 10)}`;
+  }
+})();
+
+function setChatStatus(state) {
+  if (!chatRoot || !chatStatus) return;
+  chatRoot.classList.remove("chat-online", "chat-offline");
+  if (state === "online") {
+    chatRoot.classList.add("chat-online");
+  } else if (state === "offline") {
+    chatRoot.classList.add("chat-offline");
+  }
+  chatStatus.textContent = state;
+}
+
+function appendChatMessage({ name, text, ts, self = false, system = false }) {
+  if (!chatMessages) return;
+  const wrap = document.createElement("div");
+  wrap.className = `chat-msg${self ? " self" : ""}`;
+  const meta = document.createElement("div");
+  meta.className = "chat-msg-meta";
+  const who = document.createElement("span");
+  who.textContent = system ? "system" : name || "guest";
+  const when = document.createElement("span");
+  const time = new Date(ts || Date.now());
+  when.textContent = time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  meta.appendChild(who);
+  meta.appendChild(when);
+  const body = document.createElement("div");
+  body.className = "chat-msg-text";
+  body.textContent = text || "";
+  wrap.appendChild(meta);
+  wrap.appendChild(body);
+  chatMessages.appendChild(wrap);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function connectChat() {
+  if (!chatRoot || !CHAT_WS_URL) return;
+  if (chatSocket && (chatSocket.readyState === 0 || chatSocket.readyState === 1)) return;
+
+  setChatStatus("connecting");
+  try {
+    chatSocket = new WebSocket(CHAT_WS_URL);
+  } catch {
+    setChatStatus("offline");
+    return;
+  }
+
+  chatSocket.addEventListener("open", () => {
+    chatBackoffMs = 1000;
+    setChatStatus("online");
+    appendChatMessage({ text: "Connected.", system: true });
+  });
+
+  chatSocket.addEventListener("close", () => {
+    setChatStatus("offline");
+    appendChatMessage({ text: "Disconnected. Reconnecting...", system: true });
+    if (!chatReconnectTimer) {
+      chatReconnectTimer = setTimeout(() => {
+        chatReconnectTimer = null;
+        chatBackoffMs = Math.min(15000, chatBackoffMs * 1.5);
+        connectChat();
+      }, chatBackoffMs);
+    }
+  });
+
+  chatSocket.addEventListener("error", () => {
+    setChatStatus("offline");
+  });
+
+  chatSocket.addEventListener("message", (event) => {
+    const raw = typeof event.data === "string" ? event.data : "";
+    if (!raw) return;
+    if (raw === "connected") {
+      appendChatMessage({ text: "Server connected.", system: true });
+      return;
+    }
+    try {
+      const msg = JSON.parse(raw);
+      if (msg && msg.type === "msg") {
+        appendChatMessage({
+          name: msg.name,
+          text: msg.text,
+          ts: msg.ts,
+          self: msg.id === chatClientId,
+        });
+        return;
+      }
+    } catch {
+      // fall through
+    }
+    appendChatMessage({ text: raw, system: true });
+  });
+}
+
+if (chatName) {
+  try {
+    const stored = localStorage.getItem("chat.name.v1");
+    if (stored) chatName.value = stored;
+  } catch {
+    // ignore
+  }
+  chatName.addEventListener("change", () => {
+    try {
+      localStorage.setItem("chat.name.v1", chatName.value.trim());
+    } catch {
+      // ignore
+    }
+  });
+}
+
+chatForm?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!chatInput || !chatSocket || chatSocket.readyState !== 1) {
+    appendChatMessage({ text: "Chat is offline.", system: true });
+    return;
+  }
+  const text = chatInput.value.trim();
+  if (!text) return;
+  const name = chatName?.value.trim() || "guest";
+  const payload = {
+    type: "msg",
+    id: chatClientId,
+    name,
+    text,
+    ts: Date.now(),
+  };
+  chatSocket.send(JSON.stringify(payload));
+  chatInput.value = "";
+});
+
+chatToggle?.addEventListener("click", () => {
+  if (!chatRoot || !chatToggle) return;
+  const isCollapsed = chatRoot.classList.toggle("chat-collapsed");
+  chatToggle.textContent = isCollapsed ? "Open" : "Close";
+  chatToggle.setAttribute("aria-expanded", String(!isCollapsed));
+});
+
+if (chatRoot && chatToggle) {
+  chatRoot.classList.add("chat-collapsed");
+  chatToggle.textContent = "Open";
+  chatToggle.setAttribute("aria-expanded", "false");
+  connectChat();
+}
