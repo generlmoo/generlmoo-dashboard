@@ -489,6 +489,9 @@ h3{
 .chat-collapsed .chat-toggle{
   content: "Open";
 }
+.chat:not(.chat-collapsed) .chat-messages{
+  height: 320px;
+}
 .chat-online .chat-dot{
   background: var(--good);
   box-shadow: 0 0 14px rgba(57,255,136,0.35), 0 0 0 2px rgba(57,255,136,0.14);
