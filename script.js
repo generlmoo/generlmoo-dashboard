@@ -573,10 +573,13 @@ const CHAT_MAX_LEN = 280;
 const CHAT_RESERVED_NAME = "generlmoo";
 const CHAT_URL_RE = /(https?:\/\/|www\.)/i;
 const CHAT_HTML_RE = /<[^>]+>/;
+const CHAT_COOLDOWN_MS = 5000;
 
 let chatSocket = null;
 let chatReconnectTimer = null;
 let chatBackoffMs = 1000;
+let chatBanned = false;
+let chatCooldownUntil = 0;
 const chatClientId = (() => {
   try {
     const key = "chat.client.id.v1";
@@ -592,11 +595,13 @@ const chatClientId = (() => {
 
 function setChatStatus(state) {
   if (!chatRoot || !chatStatus) return;
-  chatRoot.classList.remove("chat-online", "chat-offline");
+  chatRoot.classList.remove("chat-online", "chat-offline", "chat-banned");
   if (state === "online") {
     chatRoot.classList.add("chat-online");
   } else if (state === "offline") {
     chatRoot.classList.add("chat-offline");
+  } else if (state === "banned") {
+    chatRoot.classList.add("chat-banned");
   }
   chatStatus.textContent = state;
 }
@@ -637,6 +642,7 @@ function isBlockedContent(text) {
 
 function connectChat() {
   if (!chatRoot || !CHAT_WS_URL) return;
+  if (chatBanned) return;
   if (chatSocket && (chatSocket.readyState === 0 || chatSocket.readyState === 1)) return;
 
   setChatStatus("connecting");
@@ -653,7 +659,18 @@ function connectChat() {
     appendChatMessage({ text: "Connected.", system: true });
   });
 
-  chatSocket.addEventListener("close", () => {
+  chatSocket.addEventListener("close", (event) => {
+    if (event && (event.code === 4001 || event.code === 4002 || event.code === 4003)) {
+      chatBanned = true;
+      if (chatReconnectTimer) {
+        clearTimeout(chatReconnectTimer);
+        chatReconnectTimer = null;
+      }
+      setChatStatus("banned");
+      appendChatMessage({ text: "You are banned from chat.", system: true });
+      return;
+    }
+
     setChatStatus("offline");
     appendChatMessage({ text: "Disconnected. Reconnecting...", system: true });
     if (!chatReconnectTimer) {
@@ -672,6 +689,16 @@ function connectChat() {
   chatSocket.addEventListener("message", (event) => {
     const raw = typeof event.data === "string" ? event.data : "";
     if (!raw) return;
+    if (raw.toLowerCase().includes("banned")) {
+      chatBanned = true;
+      if (chatReconnectTimer) {
+        clearTimeout(chatReconnectTimer);
+        chatReconnectTimer = null;
+      }
+      setChatStatus("banned");
+      appendChatMessage({ text: "You are banned from chat.", system: true });
+      return;
+    }
     if (raw === "connected") {
       appendChatMessage({ text: "Server connected.", system: true });
       return;
@@ -705,6 +732,7 @@ if (chatName) {
     // ignore
   }
   chatName.addEventListener("change", () => {
+    if (chatName.hasAttribute("readonly")) return;
     const normalized = normalizeChatName(chatName.value);
     if (normalized !== chatName.value.trim()) {
       appendChatMessage({ text: "That name is not allowed. Using guest.", system: true });
@@ -727,6 +755,12 @@ chatForm?.addEventListener("submit", (e) => {
   }
   const text = chatInput.value.trim();
   if (!text) return;
+  const now = Date.now();
+  if (now < chatCooldownUntil) {
+    const remaining = Math.ceil((chatCooldownUntil - now) / 1000);
+    appendChatMessage({ text: `Please wait ${remaining}s before sending again.`, system: true });
+    return;
+  }
   if (text.length > CHAT_MAX_LEN) {
     appendChatMessage({ text: `Message too long (max ${CHAT_MAX_LEN}).`, system: true });
     return;
@@ -753,6 +787,7 @@ chatForm?.addEventListener("submit", (e) => {
     ts: Date.now(),
   };
   chatSocket.send(JSON.stringify(payload));
+  chatCooldownUntil = Date.now() + CHAT_COOLDOWN_MS;
   chatInput.value = "";
 });
 
@@ -761,6 +796,30 @@ chatToggle?.addEventListener("click", () => {
   const isCollapsed = chatRoot.classList.toggle("chat-collapsed");
   chatToggle.textContent = isCollapsed ? "Open" : "Close";
   chatToggle.setAttribute("aria-expanded", String(!isCollapsed));
+
+  if (!isCollapsed && chatName && !chatName.value && !chatName.hasAttribute("readonly")) {
+    let name = "";
+    while (!name) {
+      const entered = window.prompt("Please enter name:");
+      if (entered === null) {
+        name = "guest";
+        break;
+      }
+      const normalized = normalizeChatName(entered);
+      if (!normalized || normalized.toLowerCase() === CHAT_RESERVED_NAME) {
+        window.alert("That name is not allowed.");
+        continue;
+      }
+      name = normalized;
+    }
+    chatName.value = name;
+    chatName.setAttribute("readonly", "true");
+    try {
+      localStorage.setItem("chat.name.v1", name);
+    } catch {
+      // ignore
+    }
+  }
 });
 
 if (chatRoot && chatToggle) {
