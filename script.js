@@ -1,517 +1,830 @@
-/* generlmoo dashboard - black + neon blue */
+// generlmoo dashboard - best-effort status checks
+// NOTE: Browsers may block cross-origin checks due to CORS. This script still provides a useful "best effort".
 
-:root{
-  --bg: #05080f;
-  --card: rgba(11, 18, 32, 0.78);
-  --card2: rgba(9, 14, 26, 0.72);
-  --stroke: rgba(0, 229, 255, 0.18);
-  --stroke2: rgba(255,255,255,0.06);
-  --neon: #00e5ff;
-  --text: #e6f1ff;
-  --muted: #7aa2c2;
-  --good: #39ff88;
-  --bad: #ff3b6b;
-  --warn: #ffd166;
-  --shadow: 0 18px 60px rgba(0,0,0,0.55);
-  --radius: 20px;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-}
+const SERVICES = [
+  {
+    key: "files",
+    url: "https://files.generlmoo.me",
+    label: "files.generlmoo.me",
+    // FileBrowser serves icons under /static/img/icons/ (root /favicon.* returns HTML here).
+    probePaths: ["/static/img/icons/favicon.ico", "/static/img/icons/favicon.svg"],
+  },
+  {
+    key: "watch",
+    url: "https://watch.generlmoo.me",
+    label: "watch.generlmoo.me",
+    // Jellyfin (new UI) uses hashed favicon assets under /web/.
+    // Note: if Jellyfin is upgraded, these may change; in that case update these paths.
+    probePaths: [
+      "/web/favicon.bc8d51405ec040305a87.ico",
+      "/web/touchicon.f5bbb798cb2c65908633.png",
+      "/web/favicon.ico",
+      "/favicon.ico",
+    ],
+  },
+  {
+    key: "nas",
+    url: "https://nas.generlmoo.me",
+    label: "nas.generlmoo.me",
+    probePaths: ["/favicon.ico", "/favicon.svg"],
+  },
+  {
+    key: "pihole",
+    url: "https://pihole.generlmoo.me",
+    label: "pihole.generlmoo.me",
+    probePaths: ["/admin/img/favicons/favicon.ico", "/admin/favicon.ico", "/favicon.ico"],
+  },
+];
 
-*{ box-sizing: border-box; }
-html,body{ height: 100%; }
-body{
-  margin: 0;
-  font-family: var(--sans);
-  color: var(--text);
-  background: radial-gradient(1100px 500px at 20% 0%, rgba(0,229,255,0.08), transparent 55%),
-              radial-gradient(900px 600px at 90% 30%, rgba(0,229,255,0.06), transparent 55%),
-              var(--bg);
-  overflow-x: hidden;
-}
+// --- Mascot face controller (sprite sheet: 4 cols x 2 rows) ---
+const mascot = document.getElementById("mascot");
 
-/* background effects */
-.bg-grid{
-  position: fixed; inset: 0;
-  background-image:
-    linear-gradient(rgba(0,229,255,0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,229,255,0.08) 1px, transparent 1px);
-  background-size: 72px 72px;
-  opacity: 0.12;
-  mask-image: radial-gradient(800px 500px at 40% 0%, black 30%, transparent 70%);
-  pointer-events: none;
-}
-.bg-glow{
-  position: fixed; inset: -40%;
-  background: radial-gradient(circle at 30% 20%, rgba(0,229,255,0.12), transparent 50%);
-  filter: blur(40px);
-  opacity: 0.9;
-  pointer-events: none;
-}
+// faces.png layout (4 cols x 2 rows):
+// normal | idle1 | sad | interested
+// happy  | angry | idle2 | idle3
+const FACE = {
+  normal: 0,
+  idle1: 1,
+  sad: 2,
+  interested: 3,
+  happy: 4,
+  angry: 5,
+  idle2: 6,
+  idle3: 7,
+};
 
-.wrap{
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 28px 18px 40px;
-}
+let mascotSwitchTimer = null;
+let mascotLockTimer = null;
+let mascotLockUntil = 0;
+let annoyedLevel = 0;
+let lastActivityAt = Date.now();
+let sleepLevel = 0; // 0=normal, 1=idle1, 2=idle2, 3=idle3
+let sleepTimer = null;
+let wakeTimer = null;
+let isInterested = false;
 
-.top{
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 18px;
-}
+const IDLE1_MS = 20 * 1000;
+const IDLE2_MS = 60 * 1000;
+const IDLE3_MS = 70 * 1000;
 
-.top-left{
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-}
+function setMascotFrame(index) {
+  if (!mascot) return;
 
-/* --- Mascot face (sprite sheet) --- */
-.mascot{
-  --x: 0px;
-  --y: 0px;
-  --sheet-w: 178px;
-  --sheet-h: 90px;
+  const clamped = Math.max(0, Math.min(7, index));
+  const col = clamped % 4;
+  const row = Math.floor(clamped / 4);
 
-  appearance: none;
-  padding: 0;
-  width: 44px;
-  height: 44px;
-  display: block;
-  flex-shrink: 0;
-  line-height: 0;
-  font-size: 0;
-  border-radius: 14px;
-  border: 1px solid rgba(0,229,255,0.22);
-  background-color: rgba(0,0,0,0.20);
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.04) inset, 0 10px 30px rgba(0,229,255,0.10);
-  position: relative;
-  overflow: hidden;
-  cursor: pointer;
+  mascot.classList.add("is-switching");
+  // Sprite-sheet tuning for the provided faces.png (364x183px, ~90px tiles with ~1px gutters).
+  const sheetW = 364;
+  const sheetH = 183;
+  const tile = 90;
+  const gutter = 1;
+  const borderX = 1;
+  const borderY = 1;
 
-  background-image:
-    url("/assets/faces.png"),
-    radial-gradient(60px 60px at 30% 20%, rgba(0,229,255,0.20), transparent 55%);
-  background-repeat: no-repeat, no-repeat;
-  background-size: var(--sheet-w) var(--sheet-h), cover;
-  background-position: var(--x) var(--y), center;
-}
+  const target = 44;
+  const scale = target / tile;
 
-.mascot:focus-visible{
-  outline: 2px solid rgba(0,229,255,0.55);
-  outline-offset: 2px;
+  const scaledSheetW = sheetW * scale;
+  const scaledSheetH = sheetH * scale;
+  mascot.style.setProperty("--sheet-w", `${scaledSheetW}px`);
+  mascot.style.setProperty("--sheet-h", `${scaledSheetH}px`);
+
+  const x = -(borderX + col * (tile + gutter)) * scale;
+  const y = -(borderY + row * (tile + gutter)) * scale;
+  mascot.style.setProperty("--x", `${x}px`);
+  mascot.style.setProperty("--y", `${y}px`);
+
+  clearTimeout(mascotSwitchTimer);
+  mascotSwitchTimer = setTimeout(() => mascot.classList.remove("is-switching"), 180);
 }
 
-.mascot-static{
-  position:absolute;
-  inset: 0;
-  opacity: 0;
-  background:
-    repeating-linear-gradient(0deg,
-      rgba(255,255,255,0.08) 0px,
-      rgba(255,255,255,0.08) 1px,
-      rgba(0,0,0,0) 2px,
-      rgba(0,0,0,0) 4px);
-  mix-blend-mode: overlay;
-  pointer-events: none;
+function lockMascot(ms) {
+  mascotLockUntil = Math.max(mascotLockUntil, Date.now() + ms);
+  clearTimeout(mascotLockTimer);
+  mascotLockTimer = setTimeout(() => {
+    mascotLockUntil = 0;
+  }, ms + 25);
 }
 
-.mascot.is-switching .mascot-static{
-  opacity: 0.55;
-  animation: tvStatic 140ms steps(2) infinite;
+function setMascotMood(mood, { lockMs = 0 } = {}) {
+  if (!mascot) return;
+  if (Date.now() < mascotLockUntil) return;
+  const idx = FACE[mood] ?? FACE.normal;
+  setMascotFrame(idx);
+  if (lockMs > 0) lockMascot(lockMs);
 }
 
-@keyframes tvStatic{
-  0% { transform: translateY(0px); filter: blur(0.2px); }
-  50%{ transform: translateY(-1px); filter: blur(0.6px); }
-  100%{ transform: translateY(0px); filter: blur(0.2px); }
+setMascotFrame(FACE.happy);
+
+function markActivity() {
+  lastActivityAt = Date.now();
 }
 
-.weather-chip{
-  width: 260px;
-  padding: 12px 12px 10px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke);
-  background: linear-gradient(180deg, rgba(11,18,32,0.9), rgba(9,14,26,0.75));
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.03) inset, 0 14px 40px rgba(0,0,0,0.35);
-}
-.weather-chip-head{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.weather-chip-title{
-  font-size: 12px;
-  letter-spacing: 0.3px;
-  color: rgba(230,241,255,0.86);
-}
-.weather-chip-btn{
-  appearance: none;
-  border: 1px solid rgba(0,229,255,0.18);
-  background: rgba(0,0,0,0.18);
-  color: rgba(230,241,255,0.88);
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
-}
-.weather-chip-btn:hover{
-  transform: translateY(-1px);
-  border-color: rgba(0,229,255,0.35);
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.03) inset, 0 12px 28px rgba(0,229,255,0.08);
-}
-.weather-chip-btn:active{ transform: translateY(0px); }
-.weather-chip-line{
-  margin-top: 10px;
-}
-.weather-chip-sub{
-  margin-top: 6px;
-}
-.weather-chip-state{
-  display: none;
+function clearSleepTimers() {
+  clearTimeout(sleepTimer);
+  sleepTimer = null;
 }
 
-.brand{
-  display:flex;
-  align-items:center;
-  gap: 12px;
+function scheduleSleepChecks() {
+  if (!mascot) return;
+  clearSleepTimers();
+
+  const tick = () => {
+    const idleMs = Date.now() - lastActivityAt;
+
+    if (!isInterested) {
+      if (idleMs >= IDLE3_MS) {
+        if (sleepLevel !== 3) {
+          sleepLevel = 3;
+          setMascotMood("idle3");
+        }
+      } else if (idleMs >= IDLE2_MS) {
+        if (sleepLevel !== 2) {
+          sleepLevel = 2;
+          setMascotMood("idle2");
+        }
+      } else if (idleMs >= IDLE1_MS) {
+        if (sleepLevel !== 1) {
+          sleepLevel = 1;
+          setMascotMood("idle1");
+        }
+      } else if (sleepLevel !== 0) {
+        sleepLevel = 0;
+        setMascotMood("normal");
+      }
+    }
+
+    sleepTimer = setTimeout(tick, 1000);
+  };
+
+  tick();
 }
 
-.logo{
-  width: 44px; height: 44px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(0,229,255,0.14), rgba(0,229,255,0.04));
-  border: 1px solid var(--stroke);
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.04) inset, 0 10px 30px rgba(0,229,255,0.10);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap: 6px;
-}
-.logo-dot{
-  width: 7px; height: 7px;
-  border-radius: 999px;
-  background: rgba(0,229,255,0.75);
-  box-shadow: 0 0 12px rgba(0,229,255,0.65);
+function cancelWakeSequence() {
+  clearTimeout(wakeTimer);
+  wakeTimer = null;
 }
 
-h1{
-  font-size: 22px;
-  margin: 0;
-  letter-spacing: 0.4px;
-}
-.accent{ color: var(--neon); text-shadow: 0 0 10px rgba(0,229,255,0.35); }
-.sub{ margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+function wakeUpSequence() {
+  if (!mascot) return;
+  if (Date.now() < mascotLockUntil) return;
 
-.top-actions{ display:flex; gap: 10px; align-items:center; }
+  cancelWakeSequence();
+  if (sleepLevel === 0) return;
 
-.chip{
-  appearance: none;
-  border: 1px solid var(--stroke);
-  background: linear-gradient(180deg, rgba(11,18,32,0.9), rgba(9,14,26,0.7));
-  color: var(--text);
-  border-radius: 999px;
-  padding: 10px 12px;
-  font-size: 13px;
-  text-decoration: none;
-  cursor: pointer;
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.03) inset;
-  display:flex;
-  align-items:center;
-  gap: 8px;
-  transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
-}
-.chip:hover{
-  transform: translateY(-1px);
-  border-color: rgba(0,229,255,0.35);
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.03) inset, 0 12px 28px rgba(0,229,255,0.08);
-}
-.chip:active{ transform: translateY(0px); }
-.chip-dot{
-  width: 8px; height: 8px;
-  border-radius: 999px;
-  background: rgba(0,229,255,0.75);
-  box-shadow: 0 0 12px rgba(0,229,255,0.55);
+  const steps =
+    sleepLevel === 3
+      ? ["idle3", "idle2", "idle1", "normal"]
+      : sleepLevel === 2
+        ? ["idle2", "idle1", "normal"]
+        : ["idle1", "normal"];
+  let idx = 0;
+
+  const next = () => {
+    setMascotMood(steps[idx]);
+    idx += 1;
+    if (idx >= steps.length) {
+      sleepLevel = 0;
+      if (isInterested) setMascotMood("interested");
+      return;
+    }
+    wakeTimer = setTimeout(next, 140);
+  };
+
+  next();
 }
 
-.cards{
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 16px;
-}
-@media (max-width: 720px){
-  .top{ flex-direction: column; align-items:flex-start; }
-  .weather-chip{ width: 100%; }
-  .cards{ grid-template-columns: 1fr; }
+function pokeMascot() {
+  annoyedLevel = Math.min(6, annoyedLevel + 1);
+  if (annoyedLevel >= 3) setMascotFrame(FACE.angry);
+  else setMascotFrame(FACE.happy);
+
+  lockMascot(800);
+  setTimeout(() => {
+    annoyedLevel = Math.max(0, annoyedLevel - 1);
+    if (annoyedLevel === 0) {
+      if (sleepLevel === 3) setMascotMood("idle3");
+      else if (sleepLevel === 2) setMascotMood("idle2");
+      else setMascotMood("normal");
+    }
+  }, 1200);
 }
 
-.card{
-  position: relative;
-  padding: 16px;
-  border-radius: var(--radius);
-  border: 1px solid var(--stroke);
-  background: linear-gradient(180deg, var(--card), var(--card2));
-  box-shadow: var(--shadow);
-  text-decoration: none;
-  color: inherit;
-  overflow: hidden;
-  transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease;
-}
-.card::before{
-  content:"";
-  position:absolute;
-  inset:-1px;
-  background: radial-gradient(600px 200px at 20% 0%, rgba(0,229,255,0.18), transparent 60%);
-  opacity: 0.45;
-  pointer-events:none;
-}
-.card:hover{
-  transform: translateY(-2px);
-  border-color: rgba(0,229,255,0.38);
-  box-shadow: 0 22px 70px rgba(0,0,0,0.62), 0 0 0 1px rgba(0,229,255,0.10) inset;
-}
-.card:active{ transform: translateY(0px); }
-
-.card-head{
-  display:flex;
-  justify-content: space-between;
-  align-items:center;
-  margin-bottom: 10px;
-}
-.icon{
-  font-size: 20px;
-  width: 36px; height: 36px;
-  border-radius: 14px;
-  display:flex; align-items:center; justify-content:center;
-  border: 1px solid rgba(255,255,255,0.06);
-  background: rgba(0,0,0,0.18);
-}
-
-h2{
-  margin: 6px 0 4px;
-  font-size: 16px;
-  letter-spacing: 0.2px;
-}
-.muted{ color: var(--muted); font-size: 13px; margin: 0; }
-.mono{ font-family: var(--mono); font-size: 12px; color: rgba(230,241,255,0.82); margin-top: 12px; }
-
-.status{
-  display:flex;
-  align-items:center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.06);
-  background: rgba(0,0,0,0.18);
-}
-.status-dot{
-  width: 9px; height: 9px;
-  border-radius: 999px;
-  background: rgba(122,162,194,0.65);
-  box-shadow: 0 0 0 2px rgba(122,162,194,0.14);
-}
-.status-text{ font-size: 12px; color: rgba(230,241,255,0.78); }
-
-.status[data-status="up"] .status-dot{
-  background: var(--good);
-  box-shadow: 0 0 14px rgba(57,255,136,0.40), 0 0 0 2px rgba(57,255,136,0.14);
-}
-.status[data-status="down"] .status-dot{
-  background: var(--bad);
-  box-shadow: 0 0 14px rgba(255,59,107,0.35), 0 0 0 2px rgba(255,59,107,0.14);
-}
-.status[data-status="unknown"] .status-dot{
-  background: var(--warn);
-  box-shadow: 0 0 14px rgba(255,209,102,0.22), 0 0 0 2px rgba(255,209,102,0.12);
-}
-
-.panel{
-  margin-top: 14px;
-  padding: 16px;
-  border-radius: var(--radius);
-  border: 1px solid rgba(255,255,255,0.06);
-  background: linear-gradient(180deg, rgba(11,18,32,0.55), rgba(9,14,26,0.35));
-  box-shadow: 0 14px 50px rgba(0,0,0,0.45);
-}
-.panel-row{
-  display:grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 16px;
-}
-@media (max-width: 820px){
-  .panel-row{ grid-template-columns: 1fr; }
-}
-h3{
-  margin: 0 0 8px;
-  font-size: 14px;
-  letter-spacing: 0.2px;
-  color: rgba(230,241,255,0.92);
-}
-.kv{ margin-bottom: 10px; }
-.k{ font-size: 12px; color: rgba(230,241,255,0.72); margin-bottom: 4px; }
-.v{ font-size: 12px; }
-
-.foot{
-  margin-top: 16px;
-  display:flex;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.sep{ margin: 0 8px; opacity: 0.5; }
-
-/* --- Chat widget --- */
-.chat{
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  width: 320px;
-  max-width: calc(100vw - 36px);
-  border-radius: 18px;
-  border: 1px solid var(--stroke);
-  background: linear-gradient(180deg, rgba(11,18,32,0.95), rgba(9,14,26,0.88));
-  box-shadow: 0 18px 60px rgba(0,0,0,0.6);
-  z-index: 20;
-  overflow: hidden;
-}
-.chat-head{
-  display:flex;
-  align-items:center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  background: rgba(0,0,0,0.18);
-}
-.chat-title{
-  display:flex;
-  align-items:center;
-  gap: 8px;
-  font-size: 12px;
-  letter-spacing: 0.3px;
-  color: rgba(230,241,255,0.9);
-}
-.chat-dot{
-  width: 8px; height: 8px;
-  border-radius: 999px;
-  background: rgba(122,162,194,0.65);
-  box-shadow: 0 0 0 2px rgba(122,162,194,0.14);
-}
-.chat-status{
-  color: rgba(122,162,194,0.9);
-}
-.chat-toggle{
-  appearance: none;
-  border: 1px solid rgba(0,229,255,0.18);
-  background: rgba(0,0,0,0.18);
-  color: rgba(230,241,255,0.9);
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 11px;
-  cursor: pointer;
-}
-.chat-body{
-  padding: 10px 12px 12px;
-  display: grid;
-  gap: 10px;
-}
-.chat-meta{
-  display:flex;
-  align-items:center;
-  gap: 8px;
-}
-.chat-label{
-  font-size: 11px;
-  color: rgba(230,241,255,0.7);
-}
-.chat-input{
-  flex: 1;
-  min-width: 0;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(0,0,0,0.22);
-  color: var(--text);
-  border-radius: 10px;
-  padding: 6px 8px;
-  font-size: 12px;
-}
-.chat-input::placeholder{ color: rgba(122,162,194,0.7); }
-.chat-messages{
-  height: 200px;
-  overflow-y: auto;
-  display: grid;
-  gap: 8px;
-  padding-right: 2px;
-}
-.chat-msg{
-  display: grid;
-  gap: 2px;
-  padding: 6px 8px;
-  border-radius: 12px;
-  background: rgba(0,0,0,0.22);
-  border: 1px solid rgba(255,255,255,0.06);
-}
-.chat-msg.self{
-  border-color: rgba(0,229,255,0.25);
-  background: rgba(0,229,255,0.08);
-}
-.chat-msg-meta{
-  display:flex;
-  gap: 8px;
-  font-size: 11px;
-  color: rgba(230,241,255,0.7);
-}
-.chat-msg-text{
-  font-size: 12px;
-}
-.chat-form{
-  display:flex;
-  gap: 8px;
-}
-.chat-send{
-  appearance: none;
-  border: 1px solid rgba(0,229,255,0.22);
-  background: rgba(0,0,0,0.18);
-  color: rgba(230,241,255,0.9);
-  border-radius: 10px;
-  padding: 6px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-.chat-collapsed .chat-body{
-  display: none;
-}
-.chat-collapsed .chat-toggle{
-  content: "Open";
-}
-.chat:not(.chat-collapsed) .chat-messages{
-  height: 380px;
-}
-.chat-banned .chat-dot{
-  background: var(--warn);
-  box-shadow: 0 0 14px rgba(255,209,102,0.28), 0 0 0 2px rgba(255,209,102,0.16);
-}
-.chat-banned .chat-status{ color: rgba(255,209,102,0.9); }
-.chat-online .chat-dot{
-  background: var(--good);
-  box-shadow: 0 0 14px rgba(57,255,136,0.35), 0 0 0 2px rgba(57,255,136,0.14);
-}
-.chat-online .chat-status{ color: rgba(57,255,136,0.9); }
-.chat-offline .chat-dot{
-  background: var(--bad);
-  box-shadow: 0 0 14px rgba(255,59,107,0.35), 0 0 0 2px rgba(255,59,107,0.14);
-}
-.chat-offline .chat-status{ color: rgba(255,59,107,0.85); }
-
-@media (max-width: 720px){
-  .chat{
-    right: 12px;
-    bottom: 12px;
-    width: calc(100vw - 24px);
+mascot?.addEventListener("click", pokeMascot);
+mascot?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    pokeMascot();
   }
+});
+
+function attachButtonInterestHandlers() {
+  const interactive = Array.from(document.querySelectorAll("button, a, input, select, textarea")).filter(
+    (el) => el instanceof HTMLElement && !el.hasAttribute("disabled")
+  );
+
+  for (const el of interactive) {
+    el.addEventListener("mouseenter", () => {
+      isInterested = true;
+      if (el.matches?.('[data-service="watch"]')) setMascotMood("happy");
+      else if (el.matches?.('[data-service="pihole"]')) setMascotMood("angry");
+      else setMascotMood("interested");
+    });
+    el.addEventListener("mouseleave", () => {
+      isInterested = false;
+      if (sleepLevel === 3) setMascotMood("idle3");
+      else if (sleepLevel === 2) setMascotMood("idle2");
+      else if (sleepLevel === 1) setMascotMood("idle1");
+      else setMascotMood("normal");
+    });
+    el.addEventListener("focus", () => {
+      isInterested = true;
+      if (el.matches?.('[data-service="watch"]')) setMascotMood("happy");
+      else if (el.matches?.('[data-service="pihole"]')) setMascotMood("angry");
+      else setMascotMood("interested");
+    });
+    el.addEventListener("blur", () => {
+      isInterested = false;
+      if (sleepLevel === 3) setMascotMood("idle3");
+      else if (sleepLevel === 2) setMascotMood("idle2");
+      else if (sleepLevel === 1) setMascotMood("idle1");
+      else setMascotMood("normal");
+    });
+  }
+}
+
+function attachActivityHandlers() {
+  const onActivity = (e) => {
+    if (e && (e.type === "mousemove" || e.type === "pointermove")) {
+      const dx = typeof e.movementX === "number" ? e.movementX : 0;
+      const dy = typeof e.movementY === "number" ? e.movementY : 0;
+      if (dx === 0 && dy === 0) return;
+    }
+    const wasAsleep = sleepLevel !== 0;
+    markActivity();
+    if (wasAsleep) wakeUpSequence();
+  };
+
+  window.addEventListener("mousemove", onActivity, { passive: true });
+  window.addEventListener("pointermove", onActivity, { passive: true });
+  window.addEventListener("mousedown", onActivity, { passive: true });
+  window.addEventListener("keydown", onActivity, { passive: true });
+  window.addEventListener("touchstart", onActivity, { passive: true });
+  window.addEventListener("scroll", onActivity, { passive: true });
+}
+
+attachButtonInterestHandlers();
+attachActivityHandlers();
+scheduleSleepChecks();
+
+function joinUrl(base, path) {
+  try {
+    return new URL(path, base).toString();
+  } catch {
+    return `${base}${path}`;
+  }
+}
+
+function probeImage(url, timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    let done = false;
+
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      clearTimeout(t);
+      img.onload = null;
+      img.onerror = null;
+      resolve(ok);
+    };
+
+    const t = setTimeout(() => finish(false), timeoutMs);
+    img.onload = () => finish(true);
+    img.onerror = () => finish(false);
+
+    // Cache-bust so we don't keep a stale "success" around.
+    const bust = url.includes("?") ? `&_=${Date.now()}` : `?_=${Date.now()}`;
+    img.src = `${url}${bust}`;
+  });
+}
+
+async function probeFetch(url, timeoutMs = 5000) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    
+    // Use no-cors mode to bypass CORS restrictions
+    // We only care if the request completes, not the response content
+    const response = await fetch(url, {
+      // Some proxies/apps mishandle HEAD and fail the request entirely; GET is more reliable.
+      method: 'GET',
+      mode: 'no-cors',
+      cache: 'no-store',
+      credentials: 'omit',
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeout);
+    // In no-cors mode, response.type will be 'opaque' if request succeeded
+    // Any response (even errors) means the server is reachable
+    return true;
+  } catch (e) {
+    // Network error or timeout
+    return false;
+  }
+}
+
+async function checkService(service) {
+  const paths =
+    Array.isArray(service.probePaths) && service.probePaths.length > 0 ? service.probePaths : ["/favicon.ico"];
+
+  // Use image probes so Cloudflare-origin error pages (HTML) count as Offline.
+  for (const p of paths) {
+    const ok = await probeImage(joinUrl(service.url, p));
+    if (ok) return "up";
+  }
+
+  return "down";
+}
+
+function setStatus(key, state, text) {
+  const card = document.querySelector(`[data-service="${key}"]`);
+  if (!card) return;
+
+  const status = card.querySelector(".status");
+  const statusText = card.querySelector(".status-text");
+  if (!status || !statusText) return;
+
+  status.dataset.status = state;
+  statusText.textContent = text;
+}
+
+function stampLastCheck() {
+  const el = document.getElementById("last-check");
+  if (!el) return;
+  const now = new Date();
+  el.textContent = `Last check: ${now.toLocaleString()}`;
+}
+
+async function refreshAll() {
+  for (const s of SERVICES) setStatus(s.key, "down", "Offline");
+  stampLastCheck();
+
+  await Promise.allSettled(
+    SERVICES.map(async (s) => {
+      const state = await checkService(s);
+
+      if (state === "up") {
+        setStatus(s.key, "up", "Online");
+      } else {
+        setStatus(s.key, "down", "Offline");
+      }
+    })
+  );
+
+  stampLastCheck();
+}
+
+document.getElementById("year").textContent = new Date().getFullYear();
+document.getElementById("btn-refresh").addEventListener("click", () => {
+  setMascotMood("sad", { lockMs: 700 });
+  refreshAll();
+});
+refreshAll();
+
+// ---- Weather (Open-Meteo) ----
+const weatherBtn = document.getElementById("btn-weather");
+const weatherStatus = document.getElementById("weather-status");
+const weatherSub = document.getElementById("weather-sub");
+const weatherLine = document.getElementById("weather-line");
+
+const WMO = {
+  0: "Clear",
+  1: "Mostly clear",
+  2: "Partly cloudy",
+  3: "Overcast",
+  45: "Fog",
+  48: "Rime fog",
+  51: "Light drizzle",
+  53: "Drizzle",
+  55: "Heavy drizzle",
+  61: "Light rain",
+  63: "Rain",
+  65: "Heavy rain",
+  71: "Light snow",
+  73: "Snow",
+  75: "Heavy snow",
+  80: "Rain showers",
+  81: "Showers",
+  82: "Violent showers",
+  95: "Thunderstorm",
+  96: "Thunderstorm hail",
+  99: "Heavy hail",
+};
+
+function setWeatherUi({ status, sub, line }) {
+  if (weatherStatus && typeof status === "string") weatherStatus.textContent = status;
+  if (weatherSub && typeof sub === "string") weatherSub.textContent = sub;
+  if (weatherLine && typeof line === "string") weatherLine.textContent = line;
+}
+
+function getStoredCoords() {
+  try {
+    const raw = localStorage.getItem("weather.coords.v1");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    if (typeof parsed.lat !== "number" || typeof parsed.lon !== "number") return null;
+    if (typeof parsed.ts !== "number") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function storeCoords(lat, lon) {
+  try {
+    localStorage.setItem("weather.coords.v1", JSON.stringify({ lat, lon, ts: Date.now() }));
+  } catch {
+    // ignore
+  }
+}
+
+function getPosition({ timeout = 8000 } = {}) {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: false,
+      timeout,
+      maximumAge: 10 * 60 * 1000,
+    });
+  });
+}
+
+async function fetchWeather(lat, lon) {
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m` +
+    `&temperature_unit=fahrenheit&wind_speed_unit=mph`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error("weather fetch failed");
+  return res.json();
+}
+
+async function refreshWeather({ forceLocation = false } = {}) {
+  if (!weatherSub || !weatherLine) return;
+
+  const stored = getStoredCoords();
+  const canUseStored = stored && !forceLocation;
+
+  // Most browsers require a user gesture for the geolocation permission prompt.
+  // On first load, don't request location automatically; wait for the user to click Refresh.
+  if (!canUseStored && !forceLocation) {
+    setWeatherUi({ status: "idle", sub: "Click Refresh to allow location.", line: "--" });
+    return;
+  }
+
+  if (canUseStored) {
+    setWeatherUi({ status: "fetching", sub: "Updating from last location...", line: "--" });
+    try {
+      const data = await fetchWeather(stored.lat, stored.lon);
+      const c = data.current;
+      const desc = WMO[c.weather_code] || `Code ${c.weather_code}`;
+      const deg = "\u00B0";
+      setWeatherUi({
+        status: "live",
+        sub: `${desc} - Wind ${Math.round(c.wind_speed_10m)} mph`,
+        line: `${Math.round(c.temperature_2m)}${deg}F (feels ${Math.round(c.apparent_temperature)}${deg}F)`,
+      });
+    } catch {
+      setWeatherUi({ status: "failed", sub: "Couldn't fetch weather. Try refresh.", line: "--" });
+    }
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    setWeatherUi({ status: "unavailable", sub: "Geolocation not supported in this browser.", line: "--" });
+    return;
+  }
+
+  if (!window.isSecureContext) {
+    setWeatherUi({ status: "unavailable", sub: "Geolocation requires HTTPS.", line: "--" });
+    return;
+  }
+
+  setWeatherUi({ status: "getting location", sub: "Requesting location permission...", line: "--" });
+  try {
+    const pos = await getPosition();
+    const { latitude, longitude } = pos.coords;
+    storeCoords(latitude, longitude);
+
+    setWeatherUi({ status: "fetching", sub: "Fetching weather...", line: "--" });
+    const data = await fetchWeather(latitude, longitude);
+    const c = data.current;
+    const desc = WMO[c.weather_code] || `Code ${c.weather_code}`;
+    const deg = "\u00B0";
+
+    setWeatherUi({
+      status: "live",
+      sub: `${desc} - Wind ${Math.round(c.wind_speed_10m)} mph`,
+      line: `${Math.round(c.temperature_2m)}${deg}F (feels ${Math.round(c.apparent_temperature)}${deg}F)`,
+    });
+  } catch (e) {
+    const msg =
+      e && typeof e === "object" && "code" in e && e.code === 1
+        ? "Location permission denied."
+        : "Couldn't get location. Try refresh.";
+    setWeatherUi({ status: "denied", sub: msg, line: "--" });
+  }
+}
+
+weatherBtn?.addEventListener("click", () => {
+  setMascotMood("sad", { lockMs: 700 });
+  refreshWeather({ forceLocation: true });
+});
+refreshWeather();
+setInterval(() => refreshWeather(), 15 * 60 * 1000);
+
+// Visitor counter
+fetch("/counter")
+  .then(r => r.json())
+  .then(d => {
+    const el = document.getElementById("visitor-count");
+    if (el && d.visitors !== undefined) {
+      el.textContent = `Visitors: ${d.visitors}`;
+    }
+  })
+  .catch(() => {});
+
+// ---- Live chat (WebSocket) ----
+const CHAT_WS_URL = "wss://chat.generlmoo.me";
+const chatRoot = document.getElementById("chat");
+const chatStatus = document.getElementById("chat-status");
+const chatDot = document.getElementById("chat-dot");
+const chatMessages = document.getElementById("chat-messages");
+const chatForm = document.getElementById("chat-form");
+const chatInput = document.getElementById("chat-message");
+const chatName = document.getElementById("chat-name");
+const chatToggle = document.getElementById("chat-toggle");
+
+const CHAT_MAX_LEN = 280;
+const CHAT_RESERVED_NAME = "generlmoo";
+const CHAT_URL_RE = /(https?:\/\/|www\.)/i;
+const CHAT_HTML_RE = /<[^>]+>/;
+const CHAT_COOLDOWN_MS = 5000;
+
+let chatSocket = null;
+let chatReconnectTimer = null;
+let chatBackoffMs = 1000;
+let chatBanned = false;
+let chatCooldownUntil = 0;
+const chatClientId = (() => {
+  try {
+    const key = "chat.client.id.v1";
+    const existing = localStorage.getItem(key);
+    if (existing) return existing;
+    const id = `c_${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(key, id);
+    return id;
+  } catch {
+    return `c_${Math.random().toString(36).slice(2, 10)}`;
+  }
+})();
+
+function setChatStatus(state) {
+  if (!chatRoot || !chatStatus) return;
+  chatRoot.classList.remove("chat-online", "chat-offline", "chat-banned");
+  if (state === "online") {
+    chatRoot.classList.add("chat-online");
+  } else if (state === "offline") {
+    chatRoot.classList.add("chat-offline");
+  } else if (state === "banned") {
+    chatRoot.classList.add("chat-banned");
+  }
+  chatStatus.textContent = state;
+}
+
+function appendChatMessage({ name, text, ts, self = false, system = false }) {
+  if (!chatMessages) return;
+  const wrap = document.createElement("div");
+  wrap.className = `chat-msg${self ? " self" : ""}`;
+  const meta = document.createElement("div");
+  meta.className = "chat-msg-meta";
+  const who = document.createElement("span");
+  who.textContent = system ? "system" : name || "guest";
+  const when = document.createElement("span");
+  const time = new Date(ts || Date.now());
+  when.textContent = time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  meta.appendChild(who);
+  meta.appendChild(when);
+  const body = document.createElement("div");
+  body.className = "chat-msg-text";
+  body.textContent = text || "";
+  wrap.appendChild(meta);
+  wrap.appendChild(body);
+  chatMessages.appendChild(wrap);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function normalizeChatName(raw) {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return "guest";
+  if (trimmed.toLowerCase() === CHAT_RESERVED_NAME) return "guest";
+  return trimmed.slice(0, 24);
+}
+
+function isBlockedContent(text) {
+  if (!text) return false;
+  return CHAT_URL_RE.test(text) || CHAT_HTML_RE.test(text);
+}
+
+function connectChat() {
+  if (!chatRoot || !CHAT_WS_URL) return;
+  if (chatBanned) return;
+  if (chatSocket && (chatSocket.readyState === 0 || chatSocket.readyState === 1)) return;
+
+  setChatStatus("connecting");
+  try {
+    chatSocket = new WebSocket(CHAT_WS_URL);
+  } catch {
+    setChatStatus("offline");
+    return;
+  }
+
+  chatSocket.addEventListener("open", () => {
+    chatBackoffMs = 1000;
+    setChatStatus("online");
+    appendChatMessage({ text: "Connected.", system: true });
+  });
+
+  chatSocket.addEventListener("close", (event) => {
+    if (event && (event.code === 4001 || event.code === 4002 || event.code === 4003)) {
+      chatBanned = true;
+      if (chatReconnectTimer) {
+        clearTimeout(chatReconnectTimer);
+        chatReconnectTimer = null;
+      }
+      setChatStatus("banned");
+      appendChatMessage({ text: "You are banned from chat.", system: true });
+      return;
+    }
+
+    setChatStatus("offline");
+    appendChatMessage({ text: "Disconnected. Reconnecting...", system: true });
+    if (!chatReconnectTimer) {
+      chatReconnectTimer = setTimeout(() => {
+        chatReconnectTimer = null;
+        chatBackoffMs = Math.min(15000, chatBackoffMs * 1.5);
+        connectChat();
+      }, chatBackoffMs);
+    }
+  });
+
+  chatSocket.addEventListener("error", () => {
+    setChatStatus("offline");
+  });
+
+  chatSocket.addEventListener("message", (event) => {
+    const raw = typeof event.data === "string" ? event.data : "";
+    if (!raw) return;
+    if (raw.toLowerCase().includes("banned")) {
+      chatBanned = true;
+      if (chatReconnectTimer) {
+        clearTimeout(chatReconnectTimer);
+        chatReconnectTimer = null;
+      }
+      setChatStatus("banned");
+      appendChatMessage({ text: "You are banned from chat.", system: true });
+      return;
+    }
+    if (raw === "connected") {
+      appendChatMessage({ text: "Server connected.", system: true });
+      return;
+    }
+    try {
+      const msg = JSON.parse(raw);
+      if (msg && msg.type === "msg") {
+        appendChatMessage({
+          name: msg.name,
+          text: msg.text,
+          ts: msg.ts,
+          self: msg.id === chatClientId,
+        });
+        return;
+      }
+    } catch {
+      // fall through
+    }
+    appendChatMessage({ text: raw, system: true });
+  });
+}
+
+if (chatName) {
+  try {
+    const stored = localStorage.getItem("chat.name.v1");
+    if (stored) {
+      chatName.value = stored;
+      chatName.setAttribute("readonly", "true");
+    }
+  } catch {
+    // ignore
+  }
+  chatName.addEventListener("change", () => {
+    if (chatName.hasAttribute("readonly")) return;
+    const normalized = normalizeChatName(chatName.value);
+    if (normalized !== chatName.value.trim()) {
+      appendChatMessage({ text: "That name is not allowed. Using guest.", system: true });
+      chatName.value = normalized;
+    }
+    chatName.setAttribute("readonly", "true");
+    try {
+      localStorage.setItem("chat.name.v1", normalized);
+    } catch {
+      // ignore
+    }
+  });
+}
+
+chatForm?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!chatInput || !chatSocket || chatSocket.readyState !== 1) {
+    appendChatMessage({ text: "Chat is offline.", system: true });
+    return;
+  }
+  const text = chatInput.value.trim();
+  if (!text) return;
+  const now = Date.now();
+  if (now < chatCooldownUntil) {
+    const remaining = Math.ceil((chatCooldownUntil - now) / 1000);
+    appendChatMessage({ text: `Please wait ${remaining}s before sending again.`, system: true });
+    return;
+  }
+  if (text.length > CHAT_MAX_LEN) {
+    appendChatMessage({ text: `Message too long (max ${CHAT_MAX_LEN}).`, system: true });
+    return;
+  }
+  if (isBlockedContent(text)) {
+    appendChatMessage({ text: "Links or HTML are not allowed.", system: true });
+    return;
+  }
+  const name = normalizeChatName(chatName?.value);
+  if (chatName && !chatName.hasAttribute("readonly")) {
+    chatName.value = name;
+    chatName.setAttribute("readonly", "true");
+    try {
+      localStorage.setItem("chat.name.v1", name);
+    } catch {
+      // ignore
+    }
+  }
+  const payload = {
+    type: "msg",
+    id: chatClientId,
+    name,
+    text,
+    ts: Date.now(),
+  };
+  chatSocket.send(JSON.stringify(payload));
+  chatCooldownUntil = Date.now() + CHAT_COOLDOWN_MS;
+  chatInput.value = "";
+});
+
+chatToggle?.addEventListener("click", () => {
+  if (!chatRoot || !chatToggle) return;
+  const isCollapsed = chatRoot.classList.toggle("chat-collapsed");
+  chatToggle.textContent = isCollapsed ? "Open" : "Close";
+  chatToggle.setAttribute("aria-expanded", String(!isCollapsed));
+
+  if (!isCollapsed && chatName && !chatName.value && !chatName.hasAttribute("readonly")) {
+    let name = "";
+    while (!name) {
+      const entered = window.prompt("Please enter name:");
+      if (entered === null) {
+        name = "guest";
+        break;
+      }
+      const normalized = normalizeChatName(entered);
+      if (!normalized || normalized.toLowerCase() === CHAT_RESERVED_NAME) {
+        window.alert("That name is not allowed.");
+        continue;
+      }
+      name = normalized;
+    }
+    chatName.value = name;
+    chatName.setAttribute("readonly", "true");
+    try {
+      localStorage.setItem("chat.name.v1", name);
+    } catch {
+      // ignore
+    }
+  }
+});
+
+if (chatRoot && chatToggle) {
+  chatRoot.classList.add("chat-collapsed");
+  chatToggle.textContent = "Open";
+  chatToggle.setAttribute("aria-expanded", "false");
+  connectChat();
 }
