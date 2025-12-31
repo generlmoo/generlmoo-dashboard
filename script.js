@@ -571,9 +571,11 @@ const chatToggle = document.getElementById("chat-toggle");
 
 const CHAT_MAX_LEN = 280;
 const CHAT_RESERVED_NAME = "generlmoo";
+const CHAT_OWNER_NAME = "Generlmoo";
 const CHAT_URL_RE = /(https?:\/\/|www\.)/i;
 const CHAT_HTML_RE = /<[^>]+>/;
 const CHAT_COOLDOWN_MS = 5000;
+const CHAT_BAN_KEY = "chat.banned.v1";
 
 let chatSocket = null;
 let chatReconnectTimer = null;
@@ -631,6 +633,7 @@ function appendChatMessage({ name, text, ts, self = false, system = false }) {
 function normalizeChatName(raw) {
   const trimmed = (raw || "").trim();
   if (!trimmed) return "guest";
+  if (trimmed === CHAT_OWNER_NAME) return trimmed;
   if (trimmed.toLowerCase() === CHAT_RESERVED_NAME) return "guest";
   return trimmed.slice(0, 24);
 }
@@ -660,8 +663,17 @@ function connectChat() {
   });
 
   chatSocket.addEventListener("close", (event) => {
-    if (event && (event.code === 4001 || event.code === 4002 || event.code === 4003)) {
+    const reason = typeof event?.reason === "string" ? event.reason.toLowerCase() : "";
+    if (
+      event &&
+      (event.code === 4001 || event.code === 4002 || event.code === 4003 || reason.includes("banned"))
+    ) {
       chatBanned = true;
+      try {
+        localStorage.setItem(CHAT_BAN_KEY, "1");
+      } catch {
+        // ignore
+      }
       if (chatReconnectTimer) {
         clearTimeout(chatReconnectTimer);
         chatReconnectTimer = null;
@@ -691,6 +703,11 @@ function connectChat() {
     if (!raw) return;
     if (raw.toLowerCase().includes("banned")) {
       chatBanned = true;
+      try {
+        localStorage.setItem(CHAT_BAN_KEY, "1");
+      } catch {
+        // ignore
+      }
       if (chatReconnectTimer) {
         clearTimeout(chatReconnectTimer);
         chatReconnectTimer = null;
@@ -806,7 +823,7 @@ chatToggle?.addEventListener("click", () => {
         break;
       }
       const normalized = normalizeChatName(entered);
-      if (!normalized || normalized.toLowerCase() === CHAT_RESERVED_NAME) {
+      if (!normalized || (normalized.toLowerCase() === CHAT_RESERVED_NAME && normalized !== CHAT_OWNER_NAME)) {
         window.alert("That name is not allowed.");
         continue;
       }
@@ -826,5 +843,13 @@ if (chatRoot && chatToggle) {
   chatRoot.classList.add("chat-collapsed");
   chatToggle.textContent = "Open";
   chatToggle.setAttribute("aria-expanded", "false");
+  try {
+    if (localStorage.getItem(CHAT_BAN_KEY) === "1") {
+      chatBanned = true;
+      setChatStatus("banned");
+    }
+  } catch {
+    // ignore
+  }
   connectChat();
 }
