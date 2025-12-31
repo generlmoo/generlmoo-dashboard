@@ -147,11 +147,16 @@
       </div>
       <button class="chat-toggle" id="chat-toggle" type="button" aria-expanded="false">Open</button>
     </div>
-    <div class="chat-body">
+      <div class="chat-body">
       <div class="chat-meta">
         <label class="chat-label" for="chat-name">Name</label>
-        <input class="chat-input" id="chat-name" type="text" maxlength="24" placeholder="guest" />
+        <input class="chat-input" id="chat-name" type="text" maxlength="24" placeholder="Enter name" />
       </div>
+      <div class="chat-admin">
+        <button class="chat-admin-btn" id="chat-owner-login" type="button">Owner login</button>
+        <button class="chat-admin-btn" id="chat-clear" type="button" hidden>Clear chat</button>
+      </div>
+      <div class="chat-users" id="chat-users" aria-label="Connected users"></div>
       <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
       <form class="chat-form" id="chat-form">
         <input class="chat-input" id="chat-message" type="text" maxlength="280" placeholder="Say something..." autocomplete="off" />
