@@ -576,6 +576,7 @@ const CHAT_URL_RE = /(https?:\/\/|www\.)/i;
 const CHAT_HTML_RE = /<[^>]+>/;
 const CHAT_COOLDOWN_MS = 5000;
 const CHAT_BAN_KEY = "chat.banned.v1";
+const CHAT_OWNER_TOKEN_KEY = "chat.owner.token.v1";
 
 let chatSocket = null;
 let chatReconnectTimer = null;
@@ -636,6 +637,14 @@ function normalizeChatName(raw) {
   if (trimmed === CHAT_OWNER_NAME) return trimmed;
   if (trimmed.toLowerCase() === CHAT_RESERVED_NAME) return "guest";
   return trimmed.slice(0, 24);
+}
+
+function getOwnerToken() {
+  try {
+    return localStorage.getItem(CHAT_OWNER_TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
 }
 
 function isBlockedContent(text) {
@@ -701,7 +710,8 @@ function connectChat() {
   chatSocket.addEventListener("message", (event) => {
     const raw = typeof event.data === "string" ? event.data : "";
     if (!raw) return;
-    if (raw.toLowerCase().includes("banned")) {
+    const rawLower = raw.toLowerCase();
+    if (rawLower.includes("banned") || rawLower.includes("no scripts allowed")) {
       chatBanned = true;
       try {
         localStorage.setItem(CHAT_BAN_KEY, "1");
@@ -750,10 +760,24 @@ if (chatName) {
   }
   chatName.addEventListener("change", () => {
     if (chatName.hasAttribute("readonly")) return;
-    const normalized = normalizeChatName(chatName.value);
+    let normalized = normalizeChatName(chatName.value);
     if (normalized !== chatName.value.trim()) {
       appendChatMessage({ text: "That name is not allowed. Using guest.", system: true });
       chatName.value = normalized;
+    }
+    if (normalized === CHAT_OWNER_NAME) {
+      const token = window.prompt("Owner key required for Generlmoo:");
+      if (!token) {
+        appendChatMessage({ text: "Owner key missing. Using guest.", system: true });
+        normalized = "guest";
+        chatName.value = normalized;
+      } else {
+        try {
+          localStorage.setItem(CHAT_OWNER_TOKEN_KEY, token);
+        } catch {
+          // ignore
+        }
+      }
     }
     chatName.setAttribute("readonly", "true");
     try {
@@ -803,6 +827,9 @@ chatForm?.addEventListener("submit", (e) => {
     text,
     ts: Date.now(),
   };
+  if (name === CHAT_OWNER_NAME) {
+    payload.auth = getOwnerToken();
+  }
   chatSocket.send(JSON.stringify(payload));
   chatCooldownUntil = Date.now() + CHAT_COOLDOWN_MS;
   chatInput.value = "";
@@ -826,6 +853,19 @@ chatToggle?.addEventListener("click", () => {
       if (!normalized || (normalized.toLowerCase() === CHAT_RESERVED_NAME && normalized !== CHAT_OWNER_NAME)) {
         window.alert("That name is not allowed.");
         continue;
+      }
+      if (normalized === CHAT_OWNER_NAME) {
+        const token = window.prompt("Owner key required for Generlmoo:");
+        if (!token) {
+          window.alert("Owner key missing. Using guest.");
+          name = "guest";
+          break;
+        }
+        try {
+          localStorage.setItem(CHAT_OWNER_TOKEN_KEY, token);
+        } catch {
+          // ignore
+        }
       }
       name = normalized;
     }
