@@ -30,6 +30,9 @@ body{
     radial-gradient(1200px 500px at 15% 0%, rgba(15,208,196,0.12), transparent 60%),
     radial-gradient(900px 620px at 90% 25%, rgba(51,242,164,0.10), transparent 60%),
     var(--bg);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-color: var(--bg);
   overflow-x: hidden;
 }
 
