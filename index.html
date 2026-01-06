@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#00e5ff" />
-  <meta name="description" content="generlmoo.me - Personal Infrastructure Dashboard" />
-  <title>generlmoo // dashboard</title>
+  <meta name="theme-color" content="#0fd0c4" />
+  <meta name="description" content="generlmoo.me - Chester Grudzinski personal site, projects, and infrastructure." />
+  <title>generlmoo.me // Chester Grudzinski</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -14,9 +14,55 @@
   <div class="bg-grid" aria-hidden="true"></div>
   <div class="bg-glow" aria-hidden="true"></div>
 
+  <header class="site-head">
+    <div class="site-head-inner">
+      <div class="brand">
+        <button class="mascot" id="mascot" type="button" aria-label="Mascot">
+          <span class="mascot-static" aria-hidden="true"></span>
+        </button>
+        <div class="brand-copy">
+          <div class="eyebrow">generlmoo.me</div>
+          <h1>Chester Grudzinski</h1>
+          <p class="sub">Embedded systems, backend tooling, and automation.</p>
+        </div>
+      </div>
+
+      <nav class="tabs" aria-label="Primary">
+        <a class="tab" href="#home">Home</a>
+        <a class="tab" href="#about">About</a>
+        <a class="tab" href="#projects">Projects</a>
+        <a class="tab" href="#infrastructure">Infrastructure</a>
+        <a class="tab" id="resume-tab" href="#resume">Resume</a>
+        <a class="tab" href="#contact">Contact</a>
+      </nav>
+
+      <div class="head-actions">
+        <a class="chip" href="https://github.com/generlmoo" target="_blank" rel="noreferrer">
+          GitHub
+        </a>
+        <a class="chip" href="https://www.linkedin.com/in/chester-grudzinski" target="_blank" rel="noreferrer">
+          LinkedIn
+        </a>
+      </div>
+    </div>
+  </header>
+
   <main class="wrap">
-    <header class="top">
-      <div class="top-left">
+    <section class="section hero" id="home">
+      <div class="hero-main">
+        <h2>Computer Engineering grad focused on embedded systems, backend tooling, and automation.</h2>
+        <ul class="proof-list">
+          <li>Automated QuickBooks Desktop imports with structured validation and logging.</li>
+          <li>Self-hosted services behind Cloudflare Tunnel with zero inbound ports.</li>
+          <li>Designed a custom 24-bit CPU in Verilog with a full ISA + simulation tests.</li>
+        </ul>
+        <div class="hero-actions">
+          <a class="btn primary" id="resume-view" href="#resume">View Resume</a>
+          <a class="btn ghost" href="#projects">Projects</a>
+        </div>
+      </div>
+
+      <div class="hero-aside">
         <section class="weather-chip" aria-label="Local weather">
           <div class="weather-chip-head">
             <div class="weather-chip-title">Local Weather</div>
@@ -27,103 +73,285 @@
           <span class="weather-chip-state" id="weather-status" aria-hidden="true">idle</span>
         </section>
 
-        <div class="brand">
-          <button class="mascot" id="mascot" type="button" aria-label="Mascot">
-            <span class="mascot-static" aria-hidden="true"></span>
-          </button>
-          <div>
-            <h1>generlmoo<span class="accent">.me</span></h1>
-            <p class="sub">Personal Infrastructure Dashboard</p>
-          </div>
+        <div class="info-card">
+          <h3>Open to roles</h3>
+          <p class="muted">Embedded, systems, and software roles with hands-on hardware + tooling.</p>
         </div>
       </div>
+    </section>
 
-      <div class="top-actions">
+    <section class="section split" id="about">
+      <div class="split-main">
+        <h2>About</h2>
+        <p>
+          I build reliable, testable systems that bridge hardware and software. My focus is on embedded
+          development, backend tooling, and automation that makes teams faster and systems safer.
+        </p>
+        <p>
+          I like shipping projects that live on the internet and on real hardware, from custom CPUs to
+          self-hosted services.
+        </p>
+      </div>
+      <div class="split-side">
+        <div class="mini-card">
+          <h3>Focus areas</h3>
+          <ul class="mini-list">
+            <li>Embedded systems + hardware integration</li>
+            <li>Automation pipelines + data validation</li>
+            <li>Infrastructure observability + reliability</li>
+          </ul>
+        </div>
+        <div class="mini-card">
+          <h3>Tooling mindset</h3>
+          <p class="muted">I optimize workflows with scripts, structured logs, and clear operational docs.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="projects">
+      <div class="section-head">
+        <h2>Projects</h2>
+        <p class="muted">Selected work that highlights systems thinking, automation, and embedded design.</p>
+      </div>
+
+      <div class="project-grid">
+        <article class="project-card" style="--delay: 0ms;">
+          <div class="project-head">
+            <h3>TickerTrends Demo Platform</h3>
+            <span class="tag">Full-Stack · Data Pipelines · APIs · Visualization</span>
+          </div>
+          <p>
+            Built a demo full-stack platform showcasing financial data ingestion, backend processing,
+            and frontend visualization to support alternative-data workflows.
+          </p>
+          <div class="project-meta">
+            <span class="muted">Tech stack: JavaScript, Node.js, REST APIs, frontend dashboards</span>
+            <div class="project-links">
+              <a class="project-btn" href="https://github.com/generlmoo/tickertrends-demo" target="_blank" rel="noreferrer">View Project</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="project-card" style="--delay: 80ms;">
+          <div class="project-head">
+            <h3>generlmoo Dashboard (Personal Infrastructure UI)</h3>
+            <span class="tag">Web UI · System Monitoring · Frontend Engineering</span>
+          </div>
+          <p>
+            Designed a custom dashboard to organize and access self-hosted services, system tools,
+            and internal links from a single interface.
+          </p>
+          <div class="project-meta">
+            <span class="muted">Tech stack: HTML, CSS, JavaScript</span>
+            <div class="project-links">
+              <a class="project-btn" href="https://github.com/generlmoo/generlmoo-dashboard" target="_blank" rel="noreferrer">View Project</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="project-card" style="--delay: 160ms;">
+          <div class="project-head">
+            <h3>Raspberry Pi Homelab</h3>
+            <span class="tag">Linux · Networking · Cloudflare Tunnel · Self-Hosting</span>
+          </div>
+          <p>
+            Designed and deployed a Raspberry Pi-based homelab hosting multiple services securely behind
+            Cloudflare Tunnel, eliminating inbound port exposure.
+          </p>
+          <div class="project-meta">
+            <span class="muted">Features: NAS services, media streaming, DNS filtering, secure remote access</span>
+            <div class="project-links">
+              <a class="project-btn" href="https://github.com/generlmoo/Raspberry-pi-homelab" target="_blank" rel="noreferrer">View Project</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="project-card" style="--delay: 240ms;">
+          <div class="project-head">
+            <h3>WriteUpBot / FastParse - Financial Data Automation</h3>
+            <span class="tag">Python · Data Validation · Automation</span>
+          </div>
+          <p>
+            Developed a data parsing and normalization pipeline to clean, validate, and structure
+            inconsistent financial data for downstream accounting imports.
+          </p>
+          <div class="project-meta">
+            <span class="muted">Tech stack: Python, pandas, CSV/PDF parsing, validation logic</span>
+            <div class="project-links">
+              <a class="project-btn" href="https://github.com/generlmoo/FastParse" target="_blank" rel="noreferrer">View Project</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="project-card" style="--delay: 320ms;">
+          <div class="project-head">
+            <h3>Custom 24-bit CPU Architecture</h3>
+            <span class="tag">Verilog · Computer Architecture · Digital Design</span>
+          </div>
+          <p>
+            Designed and implemented a multi-cycle 24-bit CPU in Verilog, including datapath components,
+            control FSM, ALU, registers, and a custom instruction set.
+          </p>
+          <div class="project-meta">
+            <span class="muted">Tech stack: Verilog, simulation, FSM control</span>
+            <div class="project-links">
+              <a class="project-btn" href="https://github.com/generlmoo/ComputerArchitectureProject" target="_blank" rel="noreferrer">View Project</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="project-card" style="--delay: 400ms;">
+          <div class="project-head">
+            <h3>VisitorCounter - Site Metrics Service</h3>
+            <span class="tag">Backend · Metrics · Lightweight Services</span>
+          </div>
+          <p>
+            Built a lightweight visitor counter service to track page visits across a personal domain
+            with minimal overhead.
+          </p>
+          <div class="project-meta">
+            <span class="muted">Tech stack: JavaScript, backend services, metrics</span>
+            <div class="project-links">
+              <a class="project-btn" href="https://github.com/generlmoo/VisitorCounter" target="_blank" rel="noreferrer">View Project</a>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="infrastructure">
+      <div class="section-head">
+        <h2>Infrastructure</h2>
+        <p class="muted">Self-hosted services with status checks and clean service-level isolation.</p>
+      </div>
+
+      <div class="infra-actions">
         <button class="chip" id="btn-refresh" type="button" title="Re-check service status">
           <span class="chip-dot"></span>
           Refresh status
         </button>
-        <a class="chip" href="https://github.com/generlmoo" target="_blank" rel="noreferrer" title="Optional: link your repo">
-          GitHub
-        </a>
+        <div class="muted mono" id="last-check">Last check: --</div>
       </div>
-    </header>
 
-    <section class="cards" aria-label="Services">
-      <a class="card" href="https://files.generlmoo.me" target="_blank" rel="noreferrer" data-service="files">
-        <div class="card-head">
-          <div class="icon" aria-hidden="true">📁</div>
-          <div class="status" data-status="down" aria-label="Status">
-            <span class="status-dot"></span>
-            <span class="status-text">Offline</span>
+      <section class="cards" aria-label="Services">
+        <a class="card" href="https://files.generlmoo.me" target="_blank" rel="noreferrer" data-service="files">
+          <div class="card-head">
+            <div class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="img" aria-label="">
+                <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M14 3v5h5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+              </svg>
+            </div>
+            <div class="status" data-status="down" aria-label="Status">
+              <span class="status-dot"></span>
+              <span class="status-text">Offline</span>
+            </div>
           </div>
-        </div>
-        <h2>FileBrowser</h2>
-        <p class="muted">Upload &amp; manage files</p>
-        <div class="mono">files.generlmoo.me</div>
-      </a>
+          <h3>FileBrowser</h3>
+          <p class="muted">Secure file sharing and uploads.</p>
+          <div class="mono">files.generlmoo.me</div>
+        </a>
 
-      <a class="card" href="https://watch.generlmoo.me" target="_blank" rel="noreferrer" data-service="watch">
-        <div class="card-head">
-          <div class="icon" aria-hidden="true">🎬</div>
-          <div class="status" data-status="down" aria-label="Status">
-            <span class="status-dot"></span>
-            <span class="status-text">Offline</span>
+        <a class="card" href="https://watch.generlmoo.me" target="_blank" rel="noreferrer" data-service="watch">
+          <div class="card-head">
+            <div class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="img" aria-label="">
+                <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M10 8.5l6 3.5-6 3.5z" fill="currentColor"/>
+              </svg>
+            </div>
+            <div class="status" data-status="down" aria-label="Status">
+              <span class="status-dot"></span>
+              <span class="status-text">Offline</span>
+            </div>
           </div>
-        </div>
-        <h2>Jellyfin</h2>
-        <p class="muted">Streaming library</p>
-        <div class="mono">watch.generlmoo.me</div>
-      </a>
+          <h3>Jellyfin</h3>
+          <p class="muted">Streaming behind Cloudflare Tunnel.</p>
+          <div class="mono">watch.generlmoo.me</div>
+        </a>
 
-      <a class="card" href="https://nas.generlmoo.me" target="_blank" rel="noreferrer" data-service="nas">
-        <div class="card-head">
-          <div class="icon" aria-hidden="true">🗄️</div>
-          <div class="status" data-status="down" aria-label="Status">
-            <span class="status-dot"></span>
-            <span class="status-text">Offline</span>
+        <a class="card" href="https://nas.generlmoo.me" target="_blank" rel="noreferrer" data-service="nas">
+          <div class="card-head">
+            <div class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="img" aria-label="">
+                <rect x="4" y="4" width="16" height="6" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                <rect x="4" y="14" width="16" height="6" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                <circle cx="8" cy="7" r="1" fill="currentColor"/>
+                <circle cx="8" cy="17" r="1" fill="currentColor"/>
+              </svg>
+            </div>
+            <div class="status" data-status="down" aria-label="Status">
+              <span class="status-dot"></span>
+              <span class="status-text">Offline</span>
+            </div>
           </div>
-        </div>
-        <h2>NAS</h2>
-        <p class="muted">OpenMediaVault &amp; monitoring</p>
-        <div class="mono">nas.generlmoo.me</div>
-      </a>
+          <h3>NAS</h3>
+          <p class="muted">Home storage + monitoring.</p>
+          <div class="mono">nas.generlmoo.me</div>
+        </a>
 
-      <a class="card" href="https://pihole.generlmoo.me/admin/login" target="_blank" rel="noreferrer" data-service="pihole">
-        <div class="card-head">
-          <div class="icon" aria-hidden="true">🛡️</div>
-          <div class="status" data-status="down" aria-label="Status">
-            <span class="status-dot"></span>
-            <span class="status-text">Offline</span>
+        <a class="card" href="https://pihole.generlmoo.me/admin/login" target="_blank" rel="noreferrer" data-service="pihole">
+          <div class="card-head">
+            <div class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="img" aria-label="">
+                <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M9 12h6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                <circle cx="12" cy="12" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+              </svg>
+            </div>
+            <div class="status" data-status="down" aria-label="Status">
+              <span class="status-dot"></span>
+              <span class="status-text">Offline</span>
+            </div>
           </div>
-        </div>
-        <h2>Pi-hole</h2>
-        <p class="muted">DNS filtering &amp; stats</p>
-        <div class="mono">pihole.generlmoo.me</div>
-      </a>
+          <h3>Pi-hole</h3>
+          <p class="muted">DNS filtering + metrics.</p>
+          <div class="mono">pihole.generlmoo.me</div>
+        </a>
+      </section>
+
+      <div class="infra-note muted">
+        Uses lightweight reachability checks (best-effort; may show unknown if blocked by CORS).
+      </div>
     </section>
 
-    <section class="panel" aria-label="Notes">
-      <div class="panel-row">
-        <div class="panel-left">
-         <h3>Projects</h3>
-            <ul class="mono">
-              <li> Cloudflare Worker visitor analytics (KV-backed, privacy-first)</li>
-              <li> Raspberry Pi NAS (OMV + Jellyfin + FileBrowser)</li>
-              <li> Zero-trust ingress via Cloudflare Tunnel</li>
-              <li> Automation tooling (Python / VBA / C++)</li>
-            </ul>
-        </div>
-        <div class="panel-right">
-          <div class="kv">
-            <div class="k">Stack</div>
-            <div class="v mono">Raspberry Pi · Cloudflare Tunnel · Tailscale · Jellyfin · OMV · Pi-hole</div>
+    <section class="section" id="resume">
+      <div class="section-head">
+        <h2>Resume</h2>
+        <p class="muted">Download the PDF or preview it below.</p>
+      </div>
+
+      <div class="resume-actions">
+        <a class="btn primary" id="resume-download" href="Resume50%20-%20Software.pdf" download>Download Resume</a>
+      </div>
+
+      <div class="skills-card">
+        <h3>Skills</h3>
+        <div class="skills-grid">
+          <div>
+            <div class="skills-title">Languages</div>
+            <p class="muted">Python, C++, Verilog, Bash</p>
           </div>
-          <div class="kv">
-            <div class="k">Status checks</div>
-            <div class="v muted">Uses lightweight reachability checks (best-effort; may show unknown if blocked by CORS).</div>
+          <div>
+            <div class="skills-title">Tools</div>
+            <p class="muted">pandas, pdfplumber, Tkinter, Git, CLI tooling</p>
+          </div>
+          <div>
+            <div class="skills-title">Systems</div>
+            <p class="muted">Linux, Raspberry Pi, Cloudflare Tunnel, DNS, systemd</p>
           </div>
         </div>
+      </div>
+    </section>
+
+    <section class="section" id="contact">
+      <div class="section-head">
+        <h2>Contact</h2>
+        <p class="muted">Open to roles in embedded, systems, and software.</p>
+      </div>
+
+      <div class="contact-grid">
+        <a class="contact-card" href="mailto:cwgrudzinski@gmail.com">cwgrudzinski@gmail.com</a>
       </div>
     </section>
 
@@ -131,10 +359,10 @@
       <div class="muted">
         <span class="mono">&copy; <span id="year"></span> Chester Grudzinski</span>
         <span class="sep">&middot;</span>
-        <span>Go outside</span>
+        <span>Built on generlmoo.me</span>
+        <span class="sep">&middot;</span>
+        <span class="mono" id="visitor-count">Visitors: --</span>
       </div>
-      <div class="muted mono" id="last-check">Last check: --</div>
-      <div class="muted mono" id="visitor-count">Visitors: --</div>
     </footer>
   </main>
 
@@ -147,7 +375,7 @@
       </div>
       <button class="chat-toggle" id="chat-toggle" type="button" aria-expanded="false">Open</button>
     </div>
-      <div class="chat-body">
+    <div class="chat-body">
       <div class="chat-meta">
         <label class="chat-label" for="chat-name">Name</label>
         <input class="chat-input" id="chat-name" type="text" maxlength="24" placeholder="Enter name" />
@@ -165,6 +393,6 @@
     </div>
   </section>
 
- <script src="script.js?v=online-offline-v4"></script>
+  <script src="script.js?v=resume-refresh-v1"></script>
 </body>
 </html>
