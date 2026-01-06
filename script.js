@@ -83,7 +83,7 @@ function setMascotFrame(index) {
   const borderX = 1;
   const borderY = 1;
 
-  const target = 44;remove the resume preview. only have a download button
+  const target = 44;
   const scale = target / tile;
 
   const scaledSheetW = sheetW * scale;
