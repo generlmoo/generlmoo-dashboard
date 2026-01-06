@@ -228,7 +228,8 @@ function attachButtonInterestHandlers() {
   for (const el of interactive) {
     el.addEventListener("mouseenter", () => {
       isInterested = true;
-      if (el.matches?.('[data-service="watch"]')) setMascotMood("happy");
+      if (el.matches?.('#resume-view, #resume-tab, [data-mascot="happy"]')) setMascotMood("happy");
+      else if (el.matches?.('[data-service="watch"]')) setMascotMood("happy");
       else if (el.matches?.('[data-service="pihole"]')) setMascotMood("angry");
       else setMascotMood("interested");
     });
@@ -241,7 +242,8 @@ function attachButtonInterestHandlers() {
     });
     el.addEventListener("focus", () => {
       isInterested = true;
-      if (el.matches?.('[data-service="watch"]')) setMascotMood("happy");
+      if (el.matches?.('#resume-view, #resume-tab, [data-mascot="happy"]')) setMascotMood("happy");
+      else if (el.matches?.('[data-service="watch"]')) setMascotMood("happy");
       else if (el.matches?.('[data-service="pihole"]')) setMascotMood("angry");
       else setMascotMood("interested");
     });
