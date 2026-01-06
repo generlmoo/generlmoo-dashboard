@@ -83,7 +83,7 @@ function setMascotFrame(index) {
   const borderX = 1;
   const borderY = 1;
 
-  const target = 44;
+  const target = 44;remove the resume preview. only have a download button
   const scale = target / tile;
 
   const scaledSheetW = sheetW * scale;
@@ -596,6 +596,18 @@ const CHAT_BLOCKED_NAMES = [
   "balnut",
   "walnut",
 ];
+const CHAT_BLOCKED_WORDS = [
+  "fuck",
+  "shit",
+  "ass",
+  "pussy",
+  "dick",
+  "penis",
+  "vagina",
+  "chode",
+  "cum",
+  "sperm",
+];
 
 let chatSocket = null;
 let chatReconnectTimer = null;
@@ -671,6 +683,11 @@ function isNameBlocked(name) {
   return CHAT_BLOCKED_NAMES.some((entry) => lower.includes(entry));
 }
 
+function containsBlockedWord(name) {
+  const lower = String(name || "").toLowerCase();
+  return CHAT_BLOCKED_WORDS.some((word) => lower.includes(word));
+}
+
 function isOwnerSession(name) {
   return name === CHAT_OWNER_NAME && !!getOwnerToken();
 }
@@ -680,6 +697,7 @@ function validateName(raw) {
   if (!name) return { ok: false, reason: "Name is required." };
   if (name.toLowerCase() === "guest") return { ok: false, reason: "Guest is not allowed." };
   if (!CHAT_NAME_RE.test(name)) return { ok: false, reason: "Use letters/numbers only." };
+  if (containsBlockedWord(name)) return { ok: false, reason: "Name not allowed." };
   if (name === CHAT_OWNER_NAME) {
     if (!getOwnerToken()) return { ok: false, reason: "Owner key required." };
     return { ok: true, name };
