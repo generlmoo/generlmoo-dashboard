@@ -819,3 +819,82 @@ h3{
   *{ animation: none !important; transition: none !important; }
   html{ scroll-behavior: auto; }
 }
+
+/* ---- Experience + callsign additions (2026-08) ---- */
+.hero-status{
+  margin: 2px 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.hero-status strong{ color: var(--text); }
+.hero-status-tag{
+  display: inline-block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent-2);
+  border: 1px solid var(--stroke-strong);
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-right: 6px;
+}
+
+.callsign{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--stroke);
+}
+.callsign-label{
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.callsign-tag{
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 1px;
+  border: 1px solid var(--stroke-strong);
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 13px;
+}
+
+/* Experience list */
+.exp-list{ display: grid; gap: 16px; }
+.exp-card{
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  box-shadow: var(--shadow);
+}
+.exp-top{
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.exp-role{ margin: 0; font-size: 17px; letter-spacing: 0.2px; }
+.exp-dates{ color: var(--muted); font-size: 12px; white-space: nowrap; }
+.exp-co{ color: var(--accent); font-weight: 600; margin-top: 2px; }
+.exp-card ul{ margin: 12px 0 0; padding-left: 18px; color: var(--muted); }
+.exp-card li{ margin: 6px 0; line-height: 1.55; }
+.exp-card .project-links{ margin-top: 14px; }
+.exp-badge{
+  display: inline-block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent-2);
+  border: 1px solid var(--stroke-strong);
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-left: 8px;
+  vertical-align: middle;
+}

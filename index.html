@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0fd0c4" />
-  <meta name="description" content="generlmoo.me - Chester Grudzinski personal site, projects, and infrastructure." />
+  <meta name="description" content="generlmoo.me - Chester Grudzinski. Computer Engineer working across embedded systems, firmware, and full-stack software. Full-Stack Engineer at TickerTrends; incoming Logistics Operations Engineer at KNAPP." />
   <title>generlmoo.me // Chester Grudzinski</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css" />
@@ -23,13 +23,14 @@
         <div class="brand-copy">
           <div class="eyebrow">generlmoo.me</div>
           <h1>Chester Grudzinski</h1>
-          <p class="sub">Embedded systems, backend tooling, and automation.</p>
+          <p class="sub">Computer Engineer &middot; embedded systems, firmware, and full-stack software.</p>
         </div>
       </div>
 
       <nav class="tabs" aria-label="Primary">
         <a class="tab" href="#home">Home</a>
         <a class="tab" href="#about">About</a>
+        <a class="tab" href="#experience">Experience</a>
         <a class="tab" href="#projects">Projects</a>
         <a class="tab" href="#infrastructure">Infrastructure</a>
         <a class="tab" id="resume-tab" href="#resume">Resume</a>
@@ -50,15 +51,21 @@
   <main class="wrap">
     <section class="section hero" id="home">
       <div class="hero-main">
-        <h2>Computer Engineering graduate</h2>
+        <h2>Computer Engineer across hardware and software</h2>
+        <p class="hero-status">
+          <span class="hero-status-tag">Incoming</span>
+          Logistics Operations Engineer @ <strong>KNAPP</strong> (Aug 2026)
+          <span class="sep">&middot;</span>
+          Full-Stack Engineer @ <strong>TickerTrends</strong>
+        </p>
         <ul class="proof-list">
-          <li>Automated QuickBooks Desktop imports with structured validation and logging.</li>
-          <li>Self-hosted services behind Cloudflare Tunnel with zero inbound ports.</li>
-          <li>Designed a custom 24-bit CPU in Verilog with a full ISA + simulation tests.</li>
+          <li>Full-stack engineer at TickerTrends &mdash; built a production financial-analytics platform with async job orchestration, WebSocket progress streaming, S3 caching, and LLM-powered summaries.</li>
+          <li>Designed a 720&nbsp;V high-voltage battery management system in Altium Designer with firmware for real-time thermal monitoring; passed all electrical safety tests.</li>
+          <li>Run a Raspberry&nbsp;Pi&nbsp;5 homelab behind Cloudflare Tunnel with zero inbound ports &mdash; NAS, media, DNS filtering, and automated backups.</li>
         </ul>
         <div class="hero-actions">
           <a class="btn primary" id="resume-view" href="#resume">View Resume</a>
-          <a class="btn ghost" href="#projects">Projects</a>
+          <a class="btn ghost" href="#experience">Experience</a>
         </div>
       </div>
 
@@ -74,8 +81,12 @@
         </section>
 
         <div class="info-card">
-          <h3>Open to roles</h3>
-          <p class="muted">Embedded, systems, and software roles with hands-on hardware + tooling.</p>
+          <h3>Now</h3>
+          <p class="muted">Full-Stack Engineer at TickerTrends. Starting as a Logistics Operations Engineer at KNAPP in August 2026.</p>
+          <div class="callsign">
+            <span class="callsign-label">Amateur radio</span>
+            <span class="callsign-tag mono">KJ5QXS</span>
+          </div>
         </div>
       </div>
     </section>
@@ -84,114 +95,146 @@
       <div class="split-main">
         <h2>About</h2>
         <p>
-          I’m a Computer Engineering graduate from the University of Texas at Dallas with interests in 
-          systems engineering, automation, and low-level design. Outside of coursework, I run a personal 
-          homelab as a passion project, where I experiment with self-hosted services, networking, and Linux-based systems.
+          I&rsquo;m a Computer Engineer &mdash; B.S. in Computer Engineering from the University of Texas at Dallas
+          (Dec 2025) &mdash; who works comfortably across the hardware/software boundary. My background runs from
+          high-voltage battery management systems and embedded C firmware to production full-stack platforms and
+          self-hosted infrastructure.
         </p>
         <p>
-         Outside of engineering, I enjoy gaming, reading, and cooking. I’m currently seeking an entry-level 
-          role where I can continue building practical systems, deepen my technical skills, and contribute 
-          to real-world engineering projects.
+          Right now I&rsquo;m a Full-Stack Software Engineer at TickerTrends, and I&rsquo;ll be joining KNAPP as a
+          Logistics Operations Engineer in August 2026. Outside of work I run a Raspberry&nbsp;Pi homelab, and I&rsquo;m
+          a licensed amateur radio operator (<span class="mono">KJ5QXS</span>) currently building a VHF/UHF ground station.
+        </p>
       </div>
       <div class="split-side">
         <div class="mini-card">
           <h3>Focus areas</h3>
           <ul class="mini-list">
             <li>Embedded systems + hardware integration</li>
-            <li>Automation pipelines + data validation</li>
-            <li>Infrastructure observability + reliability</li>
+            <li>Full-stack platforms + data pipelines</li>
+            <li>Infrastructure, automation, and reliability</li>
           </ul>
         </div>
         <div class="mini-card">
           <h3>Tooling mindset</h3>
-          <p class="muted">I optimize workflows with scripts, structured logs, and clear operational docs.</p>
+          <p class="muted">I optimize workflows with scripts, structured logs, and clear operational docs &mdash; on both the bench and the backend.</p>
         </div>
+      </div>
+    </section>
+
+    <section class="section" id="experience">
+      <div class="section-head">
+        <h2>Experience</h2>
+        <p class="muted">Roles across full-stack software, IT/automation, and embedded hardware engineering.</p>
+      </div>
+
+      <div class="exp-list">
+        <article class="exp-card">
+          <div class="exp-top">
+            <h3 class="exp-role">Logistics Operations Engineer <span class="exp-badge">Incoming</span></h3>
+            <span class="exp-dates mono">Aug 2026</span>
+          </div>
+          <div class="exp-co">KNAPP</div>
+          <ul>
+            <li>Joining KNAPP&rsquo;s logistics operations engineering team, applying systems and automation experience to warehouse and intralogistics operations.</li>
+          </ul>
+        </article>
+
+        <article class="exp-card">
+          <div class="exp-top">
+            <h3 class="exp-role">Full-Stack Software Engineer &mdash; Financial Analytics Platform</h3>
+            <span class="exp-dates mono">Jan 2026 &ndash; Present</span>
+          </div>
+          <div class="exp-co">TickerTrends</div>
+          <ul>
+            <li>Built a production report platform delivering financial trend metrics using Playwright rendering, async job orchestration, WebSocket progress streaming, S3 caching, block-based templates, and LLM-powered summary generation.</li>
+            <li>Hardened production security by patching ~70 SQL-injection vulnerabilities across 27 service files, optimizing YoY computation from O(n&sup2;) to O(n), and preventing Chromium OOM failures via concurrency limits.</li>
+            <li>Re-architected cron orchestration &mdash; migrated tracking from Redis to PostgreSQL, added health/error metadata across 39 scheduled workloads, and isolated processing onto dedicated backend infrastructure.</li>
+            <li>Built resilient ingestion and analytics pipelines over social, search, web, and RSS sources, handling Cloudflare-blocked responses, malformed feeds, rate-limited APIs, and multi-year backfills.</li>
+          </ul>
+          <div class="project-links">
+            <a class="project-btn" href="https://github.com/generlmoo/tickertrends-demo" target="_blank" rel="noreferrer">Demo Repo</a>
+          </div>
+        </article>
+
+        <article class="exp-card">
+          <div class="exp-top">
+            <h3 class="exp-role">IT Support Specialist</h3>
+            <span class="exp-dates mono">Jul 2025 &ndash; Jan 2026</span>
+          </div>
+          <div class="exp-co">Young and Associates Inc.</div>
+          <ul>
+            <li>Designed and deployed FastParse, a Python GUI tool that parses bank-issued PDF statements into structured accounting data and imports transactions directly into QuickBooks &mdash; eliminating a paid third-party dependency.</li>
+            <li>Automated depreciation/amortization workflows with a Python bot for ATX, raising data-entry throughput from 2.7 to 12.5 accounts per minute while reducing manual errors.</li>
+            <li>Recovered critical data from a compromised BitLocker-encrypted NVMe drive via forensic-safe imaging, decryption analysis, and a full Windows rebuild to restore business continuity.</li>
+          </ul>
+          <div class="project-links">
+            <a class="project-btn" href="https://github.com/generlmoo/FastParse" target="_blank" rel="noreferrer">FastParse</a>
+          </div>
+        </article>
+
+        <article class="exp-card">
+          <div class="exp-top">
+            <h3 class="exp-role">Systems Engineer &mdash; Battery Management System</h3>
+            <span class="exp-dates mono">May 2024 &ndash; Dec 2024</span>
+          </div>
+          <div class="exp-co">Dallas Formula Racing</div>
+          <ul>
+            <li>Designed and assembled a 720&nbsp;V high-voltage BMS in Altium Designer; produced a functional prototype that passed all electrical safety tests.</li>
+            <li>Developed embedded firmware for Texas Instruments battery-management hardware to monitor voltage, current, and I2C temperature sensors (TMP100) for real-time thermal monitoring and early fault detection.</li>
+          </ul>
+        </article>
       </div>
     </section>
 
     <section class="section" id="projects">
       <div class="section-head">
         <h2>Projects</h2>
-        <p class="muted">Selected work that highlights systems thinking, automation, and embedded design.</p>
+        <p class="muted">Personal builds spanning embedded, RF, infrastructure, and digital design.</p>
       </div>
 
       <div class="project-grid">
         <article class="project-card" style="--delay: 0ms;">
           <div class="project-head">
-            <h3>TickerTrends Demo Platform</h3>
-            <span class="tag">Full-Stack · Data Pipelines · APIs · Visualization</span>
+            <h3>Amateur Radio Ground Station</h3>
+            <span class="tag">RF &middot; VHF/UHF &middot; Satellite &middot; KJ5QXS</span>
           </div>
           <p>
-            Built a demo full-stack platform showcasing financial data ingestion, backend processing,
-            and frontend visualization to support alternative-data workflows.
+            Building a VHF/UHF ground communication station as a licensed amateur radio operator (callsign
+            <strong>KJ5QXS</strong>), using a handheld Arrow&nbsp;II dual-band Yagi antenna for terrestrial and
+            low-earth-orbit satellite contacts.
           </p>
           <div class="project-meta">
-            <span class="muted">Tech stack: JavaScript, Node.js, REST APIs, frontend dashboards</span>
-            <div class="project-links">
-              <a class="project-btn" href="https://github.com/generlmoo/tickertrends-demo" target="_blank" rel="noreferrer">View Project</a>
-            </div>
+            <span class="muted">Gear: Arrow II 146/437 dual-band Yagi, handheld transceiver, portable ground setup</span>
           </div>
         </article>
 
         <article class="project-card" style="--delay: 80ms;">
           <div class="project-head">
-            <h3>generlmoo Dashboard (Personal Infrastructure UI)</h3>
-            <span class="tag">Web UI · System Monitoring · Frontend Engineering</span>
-          </div>
-          <p>
-            Designed a custom dashboard to organize and access self-hosted services, system tools,
-            and internal links from a single interface.
-          </p>
-          <div class="project-meta">
-            <span class="muted">Tech stack: HTML, CSS, JavaScript</span>
-            <div class="project-links">
-              <a class="project-btn" href="https://github.com/generlmoo/generlmoo-dashboard" target="_blank" rel="noreferrer">View Project</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="project-card" style="--delay: 160ms;">
-          <div class="project-head">
             <h3>Raspberry Pi Homelab</h3>
-            <span class="tag">Linux · Networking · Cloudflare Tunnel · Self-Hosting</span>
+            <span class="tag">Linux &middot; Networking &middot; Cloudflare Tunnel &middot; Self-Hosting</span>
           </div>
           <p>
-            Designed and deployed a Raspberry Pi-based homelab hosting multiple services securely behind
-            Cloudflare Tunnel, eliminating inbound port exposure.
+            A self-hosted Raspberry&nbsp;Pi&nbsp;5 platform with NVMe storage, NAS services, media streaming, and DNS
+            filtering &mdash; served securely behind Cloudflare Tunnel with zero inbound ports, encrypted automated
+            backups, and disk-health monitoring.
           </p>
           <div class="project-meta">
-            <span class="muted">Features: NAS services, media streaming, DNS filtering, secure remote access</span>
+            <span class="muted">Features: NAS, media, DNS filtering, encrypted backups, private recursive DNS</span>
             <div class="project-links">
               <a class="project-btn" href="https://github.com/generlmoo/Raspberry-pi-homelab" target="_blank" rel="noreferrer">View Project</a>
             </div>
           </div>
         </article>
 
-        <article class="project-card" style="--delay: 240ms;">
-          <div class="project-head">
-            <h3>WriteUpBot / FastParse - Financial Data Automation</h3>
-            <span class="tag">Python · Data Validation · Automation</span>
-          </div>
-          <p>
-            Developed a data parsing and normalization pipeline to clean, validate, and structure
-            inconsistent financial data for downstream accounting imports.
-          </p>
-          <div class="project-meta">
-            <span class="muted">Tech stack: Python, pandas, CSV/PDF parsing, validation logic</span>
-            <div class="project-links">
-              <a class="project-btn" href="https://github.com/generlmoo/FastParse" target="_blank" rel="noreferrer">View Project</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="project-card" style="--delay: 320ms;">
+        <article class="project-card" style="--delay: 160ms;">
           <div class="project-head">
             <h3>Custom 24-bit CPU Architecture</h3>
-            <span class="tag">Verilog · Computer Architecture · Digital Design</span>
+            <span class="tag">Verilog &middot; Computer Architecture &middot; Digital Design</span>
           </div>
           <p>
-            Designed and implemented a multi-cycle 24-bit CPU in Verilog, including datapath components,
-            control FSM, ALU, registers, and a custom instruction set.
+            A multi-cycle 24-bit CPU designed and implemented in Verilog &mdash; datapath, control FSM, ALU, register
+            file, and a custom instruction set with simulation tests.
           </p>
           <div class="project-meta">
             <span class="muted">Tech stack: Verilog, simulation, FSM control</span>
@@ -201,19 +244,50 @@
           </div>
         </article>
 
-        <article class="project-card" style="--delay: 400ms;">
+        <article class="project-card" style="--delay: 240ms;">
           <div class="project-head">
-            <h3>VisitorCounter - Site Metrics Service</h3>
-            <span class="tag">Backend · Metrics · Lightweight Services</span>
+            <h3>Temperature Control System</h3>
+            <span class="tag">Embedded C &middot; I2C &middot; ESP32 &middot; Wi-Fi</span>
           </div>
           <p>
-            Built a lightweight visitor counter service to track page visits across a personal domain
-            with minimal overhead.
+            Implemented the I2C protocol in C on an ESP32-C3 to read a TI TMP100 sensor (including hand-soldering and
+            correct pull-up design), with an embedded Wi-Fi HTTP server for real-time remote temperature monitoring.
+          </p>
+          <div class="project-meta">
+            <span class="muted">Built with Dallas Formula Racing</span>
+          </div>
+        </article>
+
+        <article class="project-card" style="--delay: 320ms;">
+          <div class="project-head">
+            <h3>VisitorCounter &mdash; Site Metrics Service</h3>
+            <span class="tag">Backend &middot; Metrics &middot; Lightweight Services</span>
+          </div>
+          <p>
+            A lightweight visitor-counter service tracking page visits across this domain with minimal overhead &mdash;
+            the same counter running in the footer below.
           </p>
           <div class="project-meta">
             <span class="muted">Tech stack: JavaScript, backend services, metrics</span>
             <div class="project-links">
               <a class="project-btn" href="https://github.com/generlmoo/VisitorCounter" target="_blank" rel="noreferrer">View Project</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="project-card" style="--delay: 400ms;">
+          <div class="project-head">
+            <h3>generlmoo Dashboard</h3>
+            <span class="tag">Web UI &middot; Frontend Engineering</span>
+          </div>
+          <p>
+            This site &mdash; a hand-built static dashboard and portfolio linking my projects, self-hosted services,
+            and live status checks from a single interface.
+          </p>
+          <div class="project-meta">
+            <span class="muted">Tech stack: HTML, CSS, JavaScript</span>
+            <div class="project-links">
+              <a class="project-btn" href="https://github.com/generlmoo/generlmoo-dashboard" target="_blank" rel="noreferrer">View Project</a>
             </div>
           </div>
         </article>
@@ -266,8 +340,8 @@
               <span class="status-text">Offline</span>
             </div>
           </div>
-          <h3>Jellyfin</h3>
-          <p class="muted">Streaming behind Cloudflare Tunnel.</p>
+          <h3>Chetflix (Jellyfin)</h3>
+          <p class="muted">Private media streaming behind Cloudflare Tunnel.</p>
           <div class="mono">watch.generlmoo.me</div>
         </a>
 
@@ -306,7 +380,7 @@
             </div>
           </div>
           <h3>Pi-hole</h3>
-          <p class="muted">DNS filtering + metrics.</p>
+          <p class="muted">DNS filtering + private recursive resolver.</p>
           <div class="mono">pihole.generlmoo.me</div>
         </a>
       </section>
@@ -319,27 +393,31 @@
     <section class="section" id="resume">
       <div class="section-head">
         <h2>Resume</h2>
-        <p class="muted">Download the PDF or preview it below.</p>
+        <p class="muted">Download the latest PDF.</p>
       </div>
 
       <div class="resume-actions">
-        <a class="btn primary" id="resume-download" href="Resume50%20-%20Software.pdf" download>Download Resume</a>
+        <a class="btn primary" id="resume-download" href="Chester-Grudzinski-Resume.pdf" download>Download Resume</a>
       </div>
 
       <div class="skills-card">
         <h3>Skills</h3>
         <div class="skills-grid">
           <div>
+            <div class="skills-title">Embedded &amp; Hardware</div>
+            <p class="muted">Embedded C, SPI, I2C, UART, PCB Design, Altium Designer, KiCAD, Soldering, Oscilloscopes</p>
+          </div>
+          <div>
+            <div class="skills-title">Software &amp; Full-Stack</div>
+            <p class="muted">TypeScript, JavaScript, Python, Node.js, React, Next.js, WebSockets, REST APIs</p>
+          </div>
+          <div>
+            <div class="skills-title">Systems &amp; Infra</div>
+            <p class="muted">Linux (Debian), AWS, PostgreSQL, Redis, Cloudflare Tunnel, Git, systemd</p>
+          </div>
+          <div>
             <div class="skills-title">Languages</div>
-            <p class="muted">Python, C++, Verilog, Bash</p>
-          </div>
-          <div>
-            <div class="skills-title">Tools</div>
-            <p class="muted">pandas, pdfplumber, Tkinter, Git, CLI tooling</p>
-          </div>
-          <div>
-            <div class="skills-title">Systems</div>
-            <p class="muted">Linux, Raspberry Pi, Cloudflare Tunnel, DNS, systemd</p>
+            <p class="muted">C, Python, TypeScript, JavaScript, SQL, Java, Verilog</p>
           </div>
         </div>
       </div>
@@ -348,11 +426,14 @@
     <section class="section" id="contact">
       <div class="section-head">
         <h2>Contact</h2>
-        <p class="muted">Open to roles in embedded, systems, and software.</p>
+        <p class="muted">Happy to talk engineering, RF/amateur radio, or homelab projects.</p>
       </div>
 
       <div class="contact-grid">
         <a class="contact-card" href="mailto:cwgrudzinski@gmail.com">cwgrudzinski@gmail.com</a>
+        <a class="contact-card" href="https://www.linkedin.com/in/chester-grudzinski" target="_blank" rel="noreferrer">linkedin.com/in/chester-grudzinski</a>
+        <a class="contact-card" href="https://github.com/generlmoo" target="_blank" rel="noreferrer">github.com/generlmoo</a>
+        <div class="contact-card mono">Amateur radio &middot; KJ5QXS</div>
       </div>
     </section>
 
