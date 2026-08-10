@@ -879,6 +879,18 @@ function connectChat() {
         });
         return;
       }
+      if (msg && msg.type === "history" && Array.isArray(msg.messages)) {
+        // Replay the recent messages the server sent on connect so the box isn't empty.
+        for (const m of msg.messages) {
+          appendChatMessage({
+            name: m.name,
+            text: m.text,
+            ts: m.ts,
+            self: m.id === chatClientId,
+          });
+        }
+        return;
+      }
       if (msg && msg.type === "users") {
         renderUsers(msg.users);
         return;
