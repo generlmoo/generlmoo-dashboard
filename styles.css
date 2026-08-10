@@ -898,3 +898,22 @@ h3{
   margin-left: 8px;
   vertical-align: middle;
 }
+
+/* "Verify my license" button (callsign -> FCC record) */
+.verify-link{
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  color: var(--accent);
+  text-decoration: none;
+  border: 1px solid var(--stroke-strong);
+  border-radius: 8px;
+  padding: 6px 12px;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.verify-link:hover{
+  background: rgba(15,208,196,0.12);
+  border-color: var(--accent);
+  color: var(--accent-2);
+}
