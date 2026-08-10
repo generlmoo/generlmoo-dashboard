@@ -616,6 +616,10 @@ let chatReconnectTimer = null;
 let chatBackoffMs = 1000;
 let chatBanned = false;
 let chatCooldownUntil = 0;
+let chatLastText = "";
+let chatLastTextAt = 0;
+let chatReconnectNotified = false;
+const CHAT_REPEAT_WINDOW_MS = 60000;
 const chatClientId = (() => {
   try {
     const key = "chat.client.id.v1";
@@ -700,9 +704,12 @@ function validateName(raw) {
   if (name.toLowerCase() === "guest") return { ok: false, reason: "Guest is not allowed." };
   if (!CHAT_NAME_RE.test(name)) return { ok: false, reason: "Use letters/numbers only." };
   if (containsBlockedWord(name)) return { ok: false, reason: "Name not allowed." };
-  if (name === CHAT_OWNER_NAME) {
-    if (!getOwnerToken()) return { ok: false, reason: "Owner key required." };
-    return { ok: true, name };
+  // Owner name match is case-insensitive so the owner's own handle ("generlmoo",
+  // "Generlmoo", etc.) is treated as an owner login (key required) rather than being
+  // rejected as an impersonation of the reserved name. Display name is canonicalized.
+  if (name.toLowerCase() === CHAT_OWNER_NAME.toLowerCase()) {
+    if (!getOwnerToken()) return { ok: false, reason: "Owner key required (use Owner login)." };
+    return { ok: true, name: CHAT_OWNER_NAME };
   }
   if (isNameBlocked(name)) return { ok: false, reason: "Name not allowed." };
   return { ok: true, name };
@@ -793,6 +800,7 @@ function connectChat() {
 
   chatSocket.addEventListener("open", () => {
     chatBackoffMs = 1000;
+    chatReconnectNotified = false;
     setChatStatus("online");
     appendChatMessage({ text: "Connected.", system: true });
     sendHello();
@@ -820,7 +828,10 @@ function connectChat() {
     }
 
     setChatStatus("offline");
-    appendChatMessage({ text: "Disconnected. Reconnecting...", system: true });
+    if (!chatReconnectNotified) {
+      appendChatMessage({ text: "Disconnected. Reconnecting...", system: true });
+      chatReconnectNotified = true;
+    }
     if (!chatReconnectTimer) {
       chatReconnectTimer = setTimeout(() => {
         chatReconnectTimer = null;
@@ -899,7 +910,9 @@ if (chatName) {
   chatName.addEventListener("change", () => {
     if (chatName.hasAttribute("readonly")) return;
     let value = chatName.value.trim();
-    if (value === CHAT_OWNER_NAME) {
+    if (value.toLowerCase() === CHAT_OWNER_NAME.toLowerCase()) {
+      value = CHAT_OWNER_NAME;
+      chatName.value = CHAT_OWNER_NAME;
       const token = window.prompt("Owner key required for Generlmoo:");
       if (!token) {
         appendChatMessage({ text: "Owner key missing.", system: true });
@@ -966,6 +979,10 @@ chatForm?.addEventListener("submit", (e) => {
     appendChatMessage({ text: "Links or HTML are not allowed.", system: true });
     return;
   }
+  if (!isOwner && text === chatLastText && now - chatLastTextAt < CHAT_REPEAT_WINDOW_MS) {
+    appendChatMessage({ text: "Please don't repeat the same message.", system: true });
+    return;
+  }
   const name = nameCheck.name;
   const payload = {
     type: "msg",
@@ -980,6 +997,8 @@ chatForm?.addEventListener("submit", (e) => {
   chatSocket.send(JSON.stringify(payload));
   if (!isOwner) {
     chatCooldownUntil = Date.now() + CHAT_COOLDOWN_MS;
+    chatLastText = text;
+    chatLastTextAt = Date.now();
   }
   chatInput.value = "";
 });
