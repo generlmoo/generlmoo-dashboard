@@ -928,6 +928,14 @@ if (chatName) {
     updateOwnerUi();
     sendHello();
   });
+
+  // Enter in the name field commits the name (blur fires the change handler above).
+  chatName.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      chatName.blur();
+    }
+  });
 }
 
 chatForm?.addEventListener("submit", (e) => {
@@ -982,43 +990,12 @@ chatToggle?.addEventListener("click", () => {
   chatToggle.textContent = isCollapsed ? "Open" : "Close";
   chatToggle.setAttribute("aria-expanded", String(!isCollapsed));
 
+  // On open with no name yet, focus the in-page name field instead of a blocking
+  // popup. The chatName "change" handler validates the name and sends hello, and
+  // Enter commits it (see the keydown handler above). No window.prompt loop.
   if (!isCollapsed && chatName && !chatName.value && !chatName.hasAttribute("readonly")) {
-    let name = "";
-    while (!name) {
-      const entered = window.prompt("Please enter name:");
-      if (entered === null) {
-        appendChatMessage({ text: "Name is required to chat.", system: true });
-        continue;
-      }
-      const trimmed = entered.trim();
-      if (trimmed === CHAT_OWNER_NAME) {
-        const token = window.prompt("Owner key required for Generlmoo:");
-        if (!token) {
-          window.alert("Owner key missing.");
-          continue;
-        }
-        try {
-          localStorage.setItem(CHAT_OWNER_TOKEN_KEY, token);
-        } catch {
-          // ignore
-        }
-      }
-      const result = validateName(trimmed);
-      if (!result.ok) {
-        window.alert(result.reason);
-        continue;
-      }
-      name = result.name;
-    }
-    chatName.value = name;
-    chatName.setAttribute("readonly", "true");
-    try {
-      localStorage.setItem("chat.name.v1", name);
-    } catch {
-      // ignore
-    }
-    updateOwnerUi();
-    sendHello();
+    chatName.focus();
+    appendChatMessage({ text: "Enter a name in the field above, then press Enter to start chatting.", system: true });
   }
 });
 
