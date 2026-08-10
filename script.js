@@ -34,6 +34,13 @@ const SERVICES = [
     label: "pihole.generlmoo.me",
     probePaths: ["/admin/img/favicons/favicon.ico", "/admin/favicon.ico", "/favicon.ico"],
   },
+  {
+    key: "pixel",
+    url: "https://pixel.generlmoo.me",
+    label: "pixel.generlmoo.me",
+    // Pixel Canvas serves its icon at /favicon.png (/favicon.ico returns HTML here).
+    probePaths: ["/favicon.png", "/favicon.ico"],
+  },
 ];
 
 // --- Mascot face controller (sprite sheet: 4 cols x 2 rows) ---
