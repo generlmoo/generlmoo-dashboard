@@ -62,42 +62,70 @@ let sleepLevel = 0; // 0=normal, 1=idle1, 2=idle2, 3=idle3
 let sleepTimer = null;
 let wakeTimer = null;
 let isInterested = false;
+let currentFrameIndex = FACE.happy;
+let blinkTimer = null;
+const prefersReducedMotion =
+  typeof window !== "undefined" &&
+  window.matchMedia &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const IDLE1_MS = 20 * 1000;
 const IDLE2_MS = 60 * 1000;
 const IDLE3_MS = 70 * 1000;
 
-function setMascotFrame(index) {
+// Position the sprite window on a given face index. Pure visual - does NOT change the
+// tracked mood or trigger the switch glitch, so blinking can flick a frame and restore.
+// Sprite-sheet tuning for faces.png (364x183px, 90px tiles with ~1px gutters).
+function positionMascotFrame(index) {
   if (!mascot) return;
-
   const clamped = Math.max(0, Math.min(7, index));
   const col = clamped % 4;
   const row = Math.floor(clamped / 4);
-
-  mascot.classList.add("is-switching");
-  // Sprite-sheet tuning for the provided faces.png (364x183px, ~90px tiles with ~1px gutters).
   const sheetW = 364;
   const sheetH = 183;
   const tile = 90;
   const gutter = 1;
   const borderX = 1;
   const borderY = 1;
-
   const target = 44;
   const scale = target / tile;
+  mascot.style.setProperty("--sheet-w", `${sheetW * scale}px`);
+  mascot.style.setProperty("--sheet-h", `${sheetH * scale}px`);
+  mascot.style.setProperty("--x", `${-(borderX + col * (tile + gutter)) * scale}px`);
+  mascot.style.setProperty("--y", `${-(borderY + row * (tile + gutter)) * scale}px`);
+}
 
-  const scaledSheetW = sheetW * scale;
-  const scaledSheetH = sheetH * scale;
-  mascot.style.setProperty("--sheet-w", `${scaledSheetW}px`);
-  mascot.style.setProperty("--sheet-h", `${scaledSheetH}px`);
-
-  const x = -(borderX + col * (tile + gutter)) * scale;
-  const y = -(borderY + row * (tile + gutter)) * scale;
-  mascot.style.setProperty("--x", `${x}px`);
-  mascot.style.setProperty("--y", `${y}px`);
-
+function setMascotFrame(index) {
+  if (!mascot) return;
+  currentFrameIndex = Math.max(0, Math.min(7, index));
+  mascot.classList.add("is-switching");
+  positionMascotFrame(currentFrameIndex);
   clearTimeout(mascotSwitchTimer);
   mascotSwitchTimer = setTimeout(() => mascot.classList.remove("is-switching"), 180);
+}
+
+// Quick blink: flick to the "--" closed-eye frame and back, without disturbing mood.
+function doBlink() {
+  if (!mascot || prefersReducedMotion) return;
+  if (Date.now() < mascotLockUntil) return; // not mid-reaction
+  if (sleepLevel >= 2) return; // deep-idle frames already read as closed
+  const restore = currentFrameIndex;
+  positionMascotFrame(FACE.idle2);
+  setTimeout(() => positionMascotFrame(restore), 120);
+  if (Math.random() < 0.22) {
+    setTimeout(() => positionMascotFrame(FACE.idle2), 250);
+    setTimeout(() => positionMascotFrame(restore), 370);
+  }
+}
+
+function scheduleBlink() {
+  if (prefersReducedMotion) return;
+  clearTimeout(blinkTimer);
+  const delay = 2600 + Math.random() * 3600; // every ~2.6-6.2s
+  blinkTimer = setTimeout(() => {
+    doBlink();
+    scheduleBlink();
+  }, delay);
 }
 
 function lockMascot(ms) {
@@ -196,10 +224,21 @@ function wakeUpSequence() {
   next();
 }
 
+function playMascotAnim(name, ms) {
+  if (!mascot || prefersReducedMotion) return;
+  mascot.classList.remove("mascot-poked", "mascot-shake");
+  void mascot.offsetWidth; // reflow so the animation restarts on repeat pokes
+  mascot.classList.add(name);
+  setTimeout(() => mascot.classList.remove(name), ms);
+}
+
 function pokeMascot() {
   annoyedLevel = Math.min(6, annoyedLevel + 1);
   if (annoyedLevel >= 3) setMascotFrame(FACE.angry);
   else setMascotFrame(FACE.happy);
+
+  // Tactile feedback: a quick punch normally, a shake once thoroughly annoyed.
+  playMascotAnim(annoyedLevel >= 5 ? "mascot-shake" : "mascot-poked", 500);
 
   lockMascot(800);
   setTimeout(() => {
@@ -277,9 +316,32 @@ function attachActivityHandlers() {
   window.addEventListener("scroll", onActivity, { passive: true });
 }
 
+function attachMascotReactions() {
+  if (!mascot) return;
+
+  // Come back to the tab -> the mascot perks up and greets you.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      markActivity();
+      if (sleepLevel !== 0) wakeUpSequence();
+      setMascotMood("happy", { lockMs: 700 });
+      scheduleBlink();
+    }
+  });
+
+  // Cursor leaves the whole page -> a little sad; comes back -> happy.
+  document.addEventListener("mouseleave", () => setMascotMood("sad", { lockMs: 450 }));
+  document.addEventListener("mouseenter", () => setMascotMood("happy", { lockMs: 450 }));
+
+  // Right-click gets a mildly annoyed look.
+  window.addEventListener("contextmenu", () => setMascotMood("angry", { lockMs: 800 }));
+}
+
 attachButtonInterestHandlers();
 attachActivityHandlers();
+attachMascotReactions();
 scheduleSleepChecks();
+scheduleBlink();
 
 function joinUrl(base, path) {
   try {
@@ -871,12 +933,17 @@ function connectChat() {
     try {
       const msg = JSON.parse(raw);
       if (msg && msg.type === "msg") {
+        const isSelf = msg.id === chatClientId;
         appendChatMessage({
           name: msg.name,
           text: msg.text,
           ts: msg.ts,
-          self: msg.id === chatClientId,
+          self: isSelf,
         });
+        // The mascot notices a new message from someone else.
+        if (!isSelf && typeof setMascotMood === "function") {
+          setMascotMood("interested", { lockMs: 600 });
+        }
         return;
       }
       if (msg && msg.type === "history" && Array.isArray(msg.messages)) {
