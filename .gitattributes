@@ -1,0 +1,6 @@
+# Static site deployed to Cloudflare/Pages - keep text as LF, never touch binaries.
+* text=auto eol=lf
+*.pdf binary
+*.png binary
+*.svg binary
+*.ico binary
