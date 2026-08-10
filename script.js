@@ -337,9 +337,85 @@ function attachMascotReactions() {
   window.addEventListener("contextmenu", () => setMascotMood("angry", { lockMs: 800 }));
 }
 
+// Scroll-spy: the mascot reacts as each section scrolls into view.
+function attachScrollSpyMoods() {
+  if (!mascot || !("IntersectionObserver" in window)) return;
+  const moodBySection = {
+    about: "interested",
+    experience: "happy",
+    projects: "interested",
+    infrastructure: "interested",
+    resume: "happy",
+    contact: "happy",
+  };
+  let lastSpyId = "";
+  const io = new IntersectionObserver(
+    (entries) => {
+      let best = null;
+      for (const e of entries) {
+        if (e.isIntersecting && (!best || e.intersectionRatio > best.intersectionRatio)) best = e;
+      }
+      if (!best || best.target.id === lastSpyId) return;
+      lastSpyId = best.target.id;
+      const mood = moodBySection[best.target.id];
+      if (mood) setMascotMood(mood, { lockMs: 450 });
+    },
+    { threshold: [0.55] }
+  );
+  for (const id of Object.keys(moodBySection)) {
+    const el = document.getElementById(id);
+    if (el) io.observe(el);
+  }
+}
+
+// Konami code -> a quick face-cycling party.
+const KONAMI = [
+  "ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown",
+  "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a",
+];
+let konamiIdx = 0;
+
+function mascotParty() {
+  if (!mascot) return;
+  lockMascot(3200);
+  mascot.classList.remove("mascot-party");
+  void mascot.offsetWidth;
+  if (!prefersReducedMotion) mascot.classList.add("mascot-party");
+  const order = [0, 1, 2, 3, 4, 5, 6, 7, 3, 4, 0, 5, 2, 1];
+  let i = 0;
+  const step = () => {
+    positionMascotFrame(order[i % order.length]);
+    i += 1;
+    if (i < 30) {
+      setTimeout(step, 85);
+    } else {
+      mascot.classList.remove("mascot-party");
+      setMascotFrame(FACE.happy);
+    }
+  };
+  step();
+}
+
+function attachKonami() {
+  window.addEventListener("keydown", (e) => {
+    const key = e.key && e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (key === KONAMI[konamiIdx]) {
+      konamiIdx += 1;
+      if (konamiIdx === KONAMI.length) {
+        konamiIdx = 0;
+        mascotParty();
+      }
+    } else {
+      konamiIdx = key === KONAMI[0] ? 1 : 0;
+    }
+  });
+}
+
 attachButtonInterestHandlers();
 attachActivityHandlers();
 attachMascotReactions();
+attachScrollSpyMoods();
+attachKonami();
 scheduleSleepChecks();
 scheduleBlink();
 
@@ -1080,6 +1156,7 @@ chatForm?.addEventListener("submit", (e) => {
     chatLastTextAt = Date.now();
   }
   chatInput.value = "";
+  if (typeof setMascotMood === "function") setMascotMood("happy", { lockMs: 500 });
 });
 
 chatToggle?.addEventListener("click", () => {

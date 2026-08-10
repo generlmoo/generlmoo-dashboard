@@ -964,3 +964,13 @@ h3{
   .mascot{ animation: none; transition: none; }
   .mascot:hover, .mascot:active{ transform: none; }
 }
+
+/* Konami party spin */
+.mascot.mascot-party{ animation: mascotParty 2.6s ease; }
+@keyframes mascotParty{
+  0%{ transform: rotate(0) scale(1); }
+  25%{ transform: rotate(180deg) scale(1.14); }
+  50%{ transform: rotate(360deg) scale(1); }
+  75%{ transform: rotate(540deg) scale(1.14); }
+  100%{ transform: rotate(720deg) scale(1); }
+}
