@@ -7,7 +7,7 @@ A black + neon-blue landing page for **generlmoo.me** that links out to your hom
 - **nas.generlmoo.me** (NAS / OMV)
 - **pihole.generlmoo.me** (Pi-hole)
 
-## Deploy (Cloudflare Pages — recommended)
+## Deploy (Cloudflare Pages - recommended)
 
 1. Create a new GitHub repo and add these files.
 2. In Cloudflare: **Workers & Pages → Pages → Create application → Connect to Git**
