@@ -458,45 +458,20 @@ function probeImage(url, timeoutMs = 5000) {
   });
 }
 
-async function probeFetch(url, timeoutMs = 5000) {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    
-    // Use no-cors mode to bypass CORS restrictions
-    // We only care if the request completes, not the response content
-    const response = await fetch(url, {
-      // Some proxies/apps mishandle HEAD and fail the request entirely; GET is more reliable.
-      method: 'GET',
-      mode: 'no-cors',
-      cache: 'no-store',
-      credentials: 'omit',
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeout);
-    // In no-cors mode, response.type will be 'opaque' if request succeeded
-    // Any response (even errors) means the server is reachable
-    return true;
-  } catch (e) {
-    // Network error or timeout
-    return false;
-  }
-}
-
 async function checkService(service) {
   const paths =
     Array.isArray(service.probePaths) && service.probePaths.length > 0 ? service.probePaths : ["/favicon.ico"];
 
-  // Use image probes so Cloudflare-origin error pages (HTML) count as Offline.
+  // Only an actual favicon image counts as "up". We deliberately do NOT fall back to a
+  // no-cors fetch: when a service's origin is down, Cloudflare still answers at its edge
+  // with an HTML 502/error page, and a no-cors fetch resolves successfully for that page
+  // (opaque response, status unreadable) - so it would report every dead service as Online.
+  // An <img> load fails on an HTML error page and only succeeds on a real image, so it
+  // honestly distinguishes a live origin from a Cloudflare error page.
   for (const p of paths) {
     const ok = await probeImage(joinUrl(service.url, p));
     if (ok) return "up";
   }
-
-  // Fallback: no-cors fetch to detect reachability when favicons are blocked by auth/CORP.
-  const okFetch = await probeFetch(service.url);
-  if (okFetch) return "up";
 
   return "down";
 }
