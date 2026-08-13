@@ -6,8 +6,9 @@ const SERVICES = [
     key: "files",
     url: "https://files.generlmoo.me",
     label: "files.generlmoo.me",
-    // FileBrowser serves icons under /static/img/icons/ (root /favicon.* returns HTML here).
-    probePaths: ["/static/img/icons/favicon.ico", "/static/img/icons/favicon.svg"],
+    // Behind Cloudflare Access: an anonymous probe only ever reaches the Access login page,
+    // so live health can't be checked from here. Shown as "Protected" instead of Online/Offline.
+    access: true,
   },
   {
     key: "watch",
@@ -26,13 +27,15 @@ const SERVICES = [
     key: "nas",
     url: "https://nas.generlmoo.me",
     label: "nas.generlmoo.me",
-    probePaths: ["/favicon.ico", "/favicon.svg"],
+    // Behind Cloudflare Access (see note on "files").
+    access: true,
   },
   {
     key: "pihole",
     url: "https://pihole.generlmoo.me",
     label: "pihole.generlmoo.me",
-    probePaths: ["/admin/img/favicons/favicon.ico", "/admin/favicon.ico", "/favicon.ico"],
+    // Behind Cloudflare Access (see note on "files").
+    access: true,
   },
   {
     key: "pixel",
@@ -496,11 +499,19 @@ function stampLastCheck() {
 }
 
 async function refreshAll() {
-  for (const s of SERVICES) setStatus(s.key, "down", "Offline");
+  for (const s of SERVICES) {
+    // Access-gated services can't be health-checked anonymously; label them, don't probe.
+    if (s.access) setStatus(s.key, "protected", "Protected");
+    else setStatus(s.key, "down", "Checking...");
+  }
   stampLastCheck();
 
   await Promise.allSettled(
     SERVICES.map(async (s) => {
+      if (s.access) {
+        setStatus(s.key, "protected", "Protected");
+        return;
+      }
       const state = await checkService(s);
 
       if (state === "up") {

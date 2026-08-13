@@ -407,7 +407,7 @@
               <span class="status-text">Offline</span>
             </div>
           </div>
-          <h3>Chetflix (Jellyfin)</h3>
+          <h3>Jellyfin</h3>
           <p class="muted">Private media streaming behind Cloudflare Tunnel.</p>
           <div class="mono">watch.generlmoo.me</div>
         </a>
@@ -472,7 +472,7 @@
       </section>
 
       <div class="infra-note muted">
-        Uses lightweight reachability checks (best-effort; may show unknown if blocked by CORS).
+        Lightweight favicon reachability checks. Services behind Cloudflare Access show as Protected, since their health can't be checked without signing in.
       </div>
     </section>
 
@@ -561,6 +561,6 @@
     </div>
   </section>
 
-  <script src="script.js?v=status-accurate"></script>
+  <script src="script.js?v=status-protected"></script>
 </body>
 </html>

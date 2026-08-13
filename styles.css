@@ -523,6 +523,12 @@ body{
   background: var(--warn);
   box-shadow: 0 0 14px rgba(255,209,102,0.22), 0 0 0 2px rgba(255,209,102,0.12);
 }
+/* Behind Cloudflare Access: health isn't publicly checkable, so we show a
+   neutral "Protected" badge rather than guess Online/Offline. */
+.status[data-status="protected"] .status-dot{
+  background: #7aa2c2;
+  box-shadow: 0 0 12px rgba(122,162,194,0.32), 0 0 0 2px rgba(122,162,194,0.16);
+}
 
 .infra-note{
   margin-top: 12px;
